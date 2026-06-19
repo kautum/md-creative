@@ -1,26 +1,50 @@
 @import "tailwindcss";
 
+/* MD Creative — dark teal theme */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg-primary: #1e3d3d; /* dark teal — page bg */
+  --bg-surface: #2a4f4f; /* medium teal — cards, panels */
+  --bg-surface-2: #1a3535; /* deeper teal — nested elements */
+  --bg-dark: #162e2e; /* darker teal — header bar */
+  --border: #3d6666; /* teal border */
+  --border-strong: #4d7a7a; /* hover border */
+  --text-primary: #ffffff; /* white */
+  --text-muted: rgba(255, 255, 255, 0.55); /* soft white */
+  --accent: #ff5c00; /* mdlondon orange */
+  --accent-hover: #e05000;
+  --skeleton: #2a5050; /* teal skeleton */
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+/* Hanken Grotesk is forced as the document-wide default here: every element
+   inherits it from <body> unless it opts into the heading font below. */
+body {
+  font-family: var(--font-body), system-ui, sans-serif;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+/* Jost on all headings + any element opting in via .font-heading (labels). */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+.font-heading {
+  font-family: var(--font-heading), system-ui, sans-serif;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+.animate-fade-in-up {
+  animation: fadeInUp 0.4s ease-out both;
 }
