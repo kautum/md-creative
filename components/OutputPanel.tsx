@@ -3,7 +3,7 @@
 
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Check, Copy, RefreshCw } from "lucide-react";
+import { Check, Copy, Music, RefreshCw } from "lucide-react";
 import type { Product, GeneratedCopy } from "@/lib/products";
 
 interface OutputPanelProps {
@@ -257,6 +257,7 @@ export default function OutputPanel({
   onRegenerateCopy,
 }: OutputPanelProps) {
   const adLabels = ["Short", "Benefit-led", "Story"];
+  const tt = copyResult?.tiktok_script ?? null;
 
   // `isRevealing` flips true once both APIs resolve; it drives the per-card
   // opacity/translate stagger in <Reveal> directly, no mirrored state needed.
@@ -435,8 +436,68 @@ export default function OutputPanel({
         </div>
       </Reveal>
 
-      {/* Paid ad copy */}
+      {/* TikTok script — mdlondon is TikTok-first, so surface the full script
+          (not just the hook shown in the mockup) with hover-to-copy. */}
       <Reveal revealed={isRevealing} index={3}>
+        <div style={cardStyle} className="flex flex-col gap-5 p-6">
+          <Label>TikTok Script</Label>
+
+          {copyLoading ? (
+            <div className="flex flex-col gap-4">
+              <Skeleton className="h-3 w-3/4" />
+              <Skeleton className="h-3 w-2/3" />
+              <Skeleton className="h-3 w-1/2" />
+            </div>
+          ) : tt?.hook ? (
+            <div className="flex flex-col gap-5">
+              {[
+                { key: "hook", label: "Hook", value: tt.hook },
+                { key: "step1", label: "Step 1", value: tt.step1 },
+                { key: "step2", label: "Step 2", value: tt.step2 },
+                { key: "cta", label: "CTA", value: tt.cta },
+              ]
+                .filter((row) => row.value)
+                .map((row) => (
+                  <div
+                    key={row.key}
+                    className="relative group flex flex-col gap-1.5 pr-8"
+                  >
+                    <span
+                      className="text-[10px] font-medium uppercase tracking-[0.2em]"
+                      style={{ color: "var(--accent)" }}
+                    >
+                      {row.label}
+                    </span>
+                    <p
+                      className="text-sm leading-relaxed"
+                      style={{ color: "var(--text-primary)" }}
+                    >
+                      {row.value}
+                    </p>
+                    <CopyIcon
+                      field={`tt-${row.key}`}
+                      value={row.value}
+                      copiedField={copiedField}
+                      onCopy={handleCopyField}
+                    />
+                  </div>
+                ))}
+              {tt.audio_vibe && (
+                <div
+                  className="flex items-center gap-2 pt-1"
+                  style={{ color: "var(--text-muted)" }}
+                >
+                  <Music size={13} />
+                  <span className="text-xs italic">{tt.audio_vibe}</span>
+                </div>
+              )}
+            </div>
+          ) : null}
+        </div>
+      </Reveal>
+
+      {/* Paid ad copy */}
+      <Reveal revealed={isRevealing} index={4}>
         <div style={cardStyle} className="flex flex-col gap-5 p-6">
           <Label>Paid Ad Copy</Label>
 
@@ -482,7 +543,7 @@ export default function OutputPanel({
       {/* Audience + Platform — two small info cards */}
       {copyResult &&
         (copyResult.audienceTargeting || copyResult.bestPlatform) && (
-          <Reveal revealed={isRevealing} index={4} className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+          <Reveal revealed={isRevealing} index={5} className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             {copyResult.audienceTargeting && (
               <div
                 className="relative group flex flex-col gap-3 p-5"
@@ -519,7 +580,7 @@ export default function OutputPanel({
 
       {/* CTA — bottom, with arrow */}
       {copyResult?.ctaRecommendation && (
-        <Reveal revealed={isRevealing} index={5} className="flex flex-col gap-3">
+        <Reveal revealed={isRevealing} index={6} className="flex flex-col gap-3">
           <Label>CTA</Label>
           <div className="relative group pr-8">
             <p

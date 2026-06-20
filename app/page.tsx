@@ -2,13 +2,26 @@
 
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import type { Product, GeneratedCopy, GeneratedImage } from "@/lib/products";
+import confetti from "canvas-confetti";
+import {
+  PRODUCTS,
+  type Product,
+  type GeneratedCopy,
+  type GeneratedImage,
+} from "@/lib/products";
+import {
+  loadHistory,
+  pushHistory,
+  clearHistory,
+  type HistoryEntry,
+} from "@/lib/history";
 import ProductGrid from "@/components/ProductGrid";
 import VibePicker from "@/components/VibePicker";
 import OutputPanel from "@/components/OutputPanel";
 import RefineChat from "@/components/RefineChat";
 import PlatformPreviews from "@/components/PlatformPreviews";
 import DownloadBar from "@/components/DownloadBar";
+import HistoryStrip from "@/components/HistoryStrip";
 
 // Cycled below the Generate button while a generation is in flight.
 const GENERATION_STEPS = [
@@ -35,8 +48,16 @@ export default function Home() {
   const [isRevealing, setIsRevealing] = useState(false);
   const [stepIndex, setStepIndex] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [history, setHistory] = useState<HistoryEntry[]>([]);
 
   const isGenerating = copyLoading || imageLoading;
+
+  // Hydrate the recent-campaigns strip from localStorage once, client-side.
+  // (Starts empty so server and first client render match — no hydration gap.)
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setHistory(loadHistory());
+  }, []);
 
   // Advance the progress index every 1.6s while generating. The index only
   // changes inside the timer callback; the message is derived below.
@@ -97,7 +118,7 @@ export default function Home() {
     sceneDescription: string,
     productName: string,
     vibe: string,
-  ) => {
+  ): Promise<string | null> => {
     setImageLoading(true);
     try {
       const res = await fetch("/api/generate-image", {
@@ -107,9 +128,12 @@ export default function Home() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error ?? `Image failed (${res.status}).`);
-      setImageUrl((data as GeneratedImage).imageUrl);
+      const url = (data as GeneratedImage).imageUrl;
+      setImageUrl(url);
+      return url;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Image generation failed.");
+      return null;
     } finally {
       setImageLoading(false);
     }
@@ -146,11 +170,58 @@ export default function Home() {
     // both resolve — runCopy/runImage catch their own errors, so this settles.
     void (async () => {
       const copy = await runCopy(product, vibe, selectedHairConcern);
+      let url: string | null = null;
       if (copy) {
-        await runImage(copy.scene_for_image_gen, product.name, vibe);
+        url = await runImage(copy.scene_for_image_gen, product.name, vibe);
       }
       setIsRevealing(true);
+      // One brand-coloured burst at the moment everything lands — only on a
+      // successful generation, never during loading or on a regenerate.
+      if (copy) {
+        confetti({
+          particleCount: 80,
+          spread: 60,
+          origin: { y: 0.6 },
+          colors: ["#FF5C00", "#ffffff", "#2A4F4F"],
+          disableForReducedMotion: true,
+        });
+        // Snapshot this campaign into the recent-campaigns strip.
+        const entry: HistoryEntry = {
+          id: Date.now().toString(),
+          productId: product.id,
+          productName: product.name,
+          productImage: product.imageUrl,
+          vibe,
+          hairConcern: selectedHairConcern,
+          campaignAngle: copy.campaignAngle,
+          caption: copy.instagramCaption,
+          copy,
+          imageUrl: url,
+          timestamp: Date.now(),
+        };
+        setHistory((prev) => pushHistory(prev, entry));
+      }
     })();
+  };
+
+  // Restore a saved campaign back into the main state so the full output panel
+  // reappears exactly as it was generated.
+  const handleRestoreCampaign = (entry: HistoryEntry) => {
+    const product = PRODUCTS.find((p) => p.id === entry.productId);
+    if (!product) return;
+    setSelectedProduct(product);
+    setSelectedVibe(entry.vibe);
+    setSelectedHairConcern(entry.hairConcern);
+    setCopyResult(entry.copy);
+    setImageUrl(entry.imageUrl);
+    setError(null);
+    setHasGenerated(true);
+    setIsRevealing(true);
+  };
+
+  const handleClearHistory = () => {
+    clearHistory();
+    setHistory([]);
   };
 
   return (
@@ -172,6 +243,14 @@ export default function Home() {
           and a lifestyle scene.
         </p>
       </header>
+
+      {history.length > 0 && (
+        <HistoryStrip
+          entries={history}
+          onRestore={handleRestoreCampaign}
+          onClear={handleClearHistory}
+        />
+      )}
 
       {!selectedProduct && (
         <p
