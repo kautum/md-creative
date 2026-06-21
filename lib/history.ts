@@ -5,9 +5,9 @@ import type { GeneratedCopy } from "@/lib/products";
 
 export interface HistoryEntry {
   id: string;
-  productId: string; // restores the full Product on click
-  productName: string;
-  productImage: string;
+  productIds: string[]; // restores the full selection on click
+  productNames: string[];
+  productImage: string; // first product's image, for the thumbnail
   vibe: string;
   hairConcern: string | null;
   campaignAngle: string;
@@ -24,7 +24,17 @@ export function loadHistory(): HistoryEntry[] {
   if (typeof window === "undefined") return [];
   try {
     const raw = window.localStorage.getItem(KEY);
-    return raw ? (JSON.parse(raw) as HistoryEntry[]) : [];
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    // Drop legacy/malformed entries (older single-product shape) so the strip
+    // never renders against a missing field.
+    return parsed.filter(
+      (e): e is HistoryEntry =>
+        !!e &&
+        Array.isArray((e as HistoryEntry).productNames) &&
+        Array.isArray((e as HistoryEntry).productIds),
+    );
   } catch {
     return [];
   }

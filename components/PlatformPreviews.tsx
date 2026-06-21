@@ -20,24 +20,26 @@ import {
   Wifi,
 } from "lucide-react";
 import type { GeneratedCopy, Product } from "@/lib/products";
+import ProductOverlays from "@/components/ProductOverlays";
 
 interface PlatformPreviewsProps {
-  product: Product;
+  products: Product[];
   copyResult: GeneratedCopy;
   imageUrl: string | null;
   isRevealing: boolean;
 }
 
 /**
- * The AD CREATIVE composite (AI scene + real product, white box dropped via
- * mix-blend multiply) rendered to fill whatever positioned parent it sits in.
- * Falls back to a teal skeleton until the scene URL exists.
+ * The AD CREATIVE composite (AI scene + tiered product overlay) rendered to fill
+ * whatever positioned parent it sits in. ≤4 products → composite; 5+ → the scene
+ * shows as pure atmosphere (ProductOverlays renders nothing). Falls back to a
+ * teal skeleton until the scene URL exists.
  */
 function SceneComposite({
-  product,
+  products,
   imageUrl,
 }: {
-  product: Product;
+  products: Product[];
   imageUrl: string | null;
 }) {
   return (
@@ -52,15 +54,7 @@ function SceneComposite({
             alt=""
             className="absolute inset-0 h-full w-full object-cover"
           />
-          <img
-            src={product.imageUrl}
-            alt=""
-            className="absolute left-1/2 top-1/2 max-h-[58%] max-w-[68%] -translate-x-1/2 -translate-y-1/2 object-contain"
-            style={{
-              mixBlendMode: "multiply",
-              filter: "drop-shadow(0 8px 18px rgba(0,0,0,0.3))",
-            }}
-          />
+          <ProductOverlays products={products} />
         </>
       ) : (
         <div
@@ -95,11 +89,11 @@ const PHONE_BASE =
   "relative w-full max-w-[330px] shrink-0 transition-transform duration-500 ease-out";
 
 function InstagramPhone({
-  product,
+  products,
   copyResult,
   imageUrl,
 }: {
-  product: Product;
+  products: Product[];
   copyResult: GeneratedCopy;
   imageUrl: string | null;
 }) {
@@ -173,7 +167,7 @@ function InstagramPhone({
 
         {/* post image — square */}
         <div className="relative w-full" style={{ aspectRatio: "1 / 1" }}>
-          <SceneComposite product={product} imageUrl={imageUrl} />
+          <SceneComposite products={products} imageUrl={imageUrl} />
         </div>
 
         {/* action bar */}
@@ -226,11 +220,11 @@ function InstagramPhone({
 }
 
 function TikTokPhone({
-  product,
+  products,
   copyResult,
   imageUrl,
 }: {
-  product: Product;
+  products: Product[];
   copyResult: GeneratedCopy;
   imageUrl: string | null;
 }) {
@@ -251,7 +245,7 @@ function TikTokPhone({
         style={{ borderRadius: "2.2rem", backgroundColor: "#000" }}
       >
         {/* full-screen scene */}
-        <SceneComposite product={product} imageUrl={imageUrl} />
+        <SceneComposite products={products} imageUrl={imageUrl} />
 
         {/* readability gradient over the bottom half */}
         <div
@@ -402,7 +396,7 @@ function NavItem({ icon, label }: { icon: React.ReactNode; label: string }) {
 }
 
 export default function PlatformPreviews({
-  product,
+  products,
   copyResult,
   imageUrl,
   isRevealing,
@@ -449,12 +443,12 @@ export default function PlatformPreviews({
           transition={{ duration: 0.6, ease: "easeOut", delay: 0.1 }}
         >
           <InstagramPhone
-            product={product}
+            products={products}
             copyResult={copyResult}
             imageUrl={imageUrl}
           />
           <TikTokPhone
-            product={product}
+            products={products}
             copyResult={copyResult}
             imageUrl={imageUrl}
           />

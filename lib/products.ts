@@ -57,6 +57,8 @@ export interface GeneratedCopy {
   bestPlatform: string;
   ctaRecommendation: string;
   scene_for_image_gen: string;
+  /** The forced visual-style category used for the scene, e.g. "studio-editorial". */
+  visual_style: string;
   tiktok_script: TiktokScript;
 }
 

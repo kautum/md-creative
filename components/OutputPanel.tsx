@@ -5,15 +5,15 @@ import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Check, Copy, Music, RefreshCw } from "lucide-react";
 import type { Product, GeneratedCopy } from "@/lib/products";
+import ProductOverlays from "@/components/ProductOverlays";
 
 interface OutputPanelProps {
-  product: Product;
+  products: Product[];
   copyResult: GeneratedCopy | null;
   imageUrl: string | null;
   copyLoading: boolean;
   imageLoading: boolean;
   isRevealing: boolean;
-  onRegenerateImage: () => void;
   onRegenerateCopy: () => void;
 }
 
@@ -112,24 +112,76 @@ const cardStyle: React.CSSProperties = {
 };
 
 /**
+ * Build a fresh Pollinations URL from an existing one: new random seed, and
+ * optionally a different model (we fall back from flux → turbo on repeated
+ * failures, since turbo tends to stay up when flux is degraded).
+ */
+function buildPollinationsRetryUrl(
+  baseUrl: string,
+  model: "flux" | "turbo",
+): string {
+  try {
+    const u = new URL(baseUrl);
+    u.searchParams.set("seed", String(Math.floor(Math.random() * 99999)));
+    u.searchParams.set("model", model);
+    return u.toString();
+  } catch {
+    return baseUrl;
+  }
+}
+
+/**
  * Ad creative card — the Pollinations URL is returned instantly and the browser
  * loads the (slow) image natively, so we show a teal skeleton until it paints.
  * Mounted with `key={imageUrl}` by the parent, so its load state resets per
  * generation without an effect.
  */
 function AdCreative({
-  product,
+  products,
   imageUrl,
   imageLoading,
-  onRegenerate,
 }: {
-  product: Product;
+  products: Product[];
   imageUrl: string | null;
   imageLoading: boolean;
-  onRegenerate: () => void;
 }) {
+  // currentUrl is what the <img> actually loads — it diverges from the imageUrl
+  // prop when we retry Pollinations with a fresh seed / turbo fallback. The
+  // parent re-keys this component on imageUrl change, so all state resets per
+  // generation without an effect.
+  const [currentUrl, setCurrentUrl] = useState(imageUrl);
   const [imgLoaded, setImgLoaded] = useState(false);
   const [imgError, setImgError] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
+
+  // Pollinations 500s intermittently. Retry: (1) fresh seed/flux, (2) turbo,
+  // (3) give up and let the user retry manually.
+  const handleSceneError = () => {
+    if (!imageUrl) {
+      setImgError(true);
+      return;
+    }
+    if (retryCount >= 2) {
+      setImgError(true);
+      return;
+    }
+    const nextModel = retryCount === 1 ? "turbo" : "flux";
+    const nextUrl = buildPollinationsRetryUrl(imageUrl, nextModel);
+    const attempt = retryCount + 1;
+    // brief pause before retrying so a momentary server blip can clear
+    setTimeout(() => {
+      setCurrentUrl(nextUrl);
+      setRetryCount(attempt);
+    }, 1000);
+  };
+
+  const manualRetry = () => {
+    if (!imageUrl) return;
+    setImgError(false);
+    setImgLoaded(false);
+    setRetryCount(0);
+    setCurrentUrl(buildPollinationsRetryUrl(imageUrl, "flux"));
+  };
 
   return (
     <div className="flex flex-col gap-3">
@@ -138,59 +190,41 @@ function AdCreative({
         className="relative h-72 w-full overflow-hidden"
         style={{ ...cardStyle, isolation: "isolate" }}
       >
-        {/* Regenerate the scene with a fresh seed — appears once loaded. */}
-        {imgLoaded && !imgError && (
-          <button
-            type="button"
-            onClick={onRegenerate}
-            aria-label="Regenerate scene"
-            title="Regenerate scene"
-            className="absolute top-2 right-2 z-10 flex items-center justify-center rounded-full transition-transform duration-200 hover:rotate-90"
-            style={{
-              backgroundColor: "rgba(0,0,0,0.5)",
-              color: "#fff",
-              padding: 6,
-            }}
-          >
-            <RefreshCw size={16} strokeWidth={2} />
-          </button>
-        )}
-        {imageUrl ? (
+        {currentUrl ? (
           <>
             <img
-              src={imageUrl}
+              src={currentUrl}
               alt="AI-generated background scene"
               onLoad={() => setImgLoaded(true)}
-              onError={() => setImgError(true)}
+              onError={handleSceneError}
               className="absolute inset-0 h-full w-full object-cover transition-opacity duration-500"
               style={{ opacity: imgLoaded && !imgError ? 1 : 0 }}
             />
-            {imgLoaded && !imgError && (
-              <img
-                src={product.imageUrl}
-                alt={product.name}
-                className="absolute left-1/2 top-1/2 max-h-[65%] -translate-x-1/2 -translate-y-1/2 object-contain"
-                style={{
-                  // multiply drops the product shot's white box into the scene.
-                  mixBlendMode: "multiply",
-                  filter: "drop-shadow(0 12px 28px rgba(0,0,0,0.35))",
-                }}
-              />
-            )}
+            {/* Tiered compositing: hero (1), flat-lay (2-4), none (5+). */}
+            {imgLoaded && !imgError && <ProductOverlays products={products} />}
             {/* Teal skeleton while the scene loads (or an error message). */}
             {(!imgLoaded || imgError) && (
               <div
                 className="absolute inset-0 flex items-center justify-center animate-pulse"
                 style={{ backgroundColor: "var(--skeleton)" }}
               >
-                <span
-                  className="text-xs uppercase tracking-[0.15em]"
-                  style={{ color: "var(--text-muted)" }}
-                >
-                  {imgError
-                    ? "Scene generation failed — retry"
-                    : "Generating scene..."}
-                </span>
+                {imgError ? (
+                  <button
+                    type="button"
+                    onClick={manualRetry}
+                    className="text-xs uppercase tracking-[0.15em] underline-offset-2 hover:underline"
+                    style={{ color: "var(--text-muted)" }}
+                  >
+                    Scene generation failed — retry
+                  </button>
+                ) : (
+                  <span
+                    className="text-xs uppercase tracking-[0.15em]"
+                    style={{ color: "var(--text-muted)" }}
+                  >
+                    Generating scene...
+                  </span>
+                )}
               </div>
             )}
           </>
@@ -247,17 +281,18 @@ function TypewriterCaption({ text, active }: { text: string; active: boolean }) 
 }
 
 export default function OutputPanel({
-  product,
+  products,
   copyResult,
   imageUrl,
   copyLoading,
   imageLoading,
   isRevealing,
-  onRegenerateImage,
   onRegenerateCopy,
 }: OutputPanelProps) {
   const adLabels = ["Short", "Benefit-led", "Story"];
   const tt = copyResult?.tiktok_script ?? null;
+  const isBundle = products.length > 1;
+  const isFullRange = products.length >= 5;
 
   // `isRevealing` flips true once both APIs resolve; it drives the per-card
   // opacity/translate stagger in <Reveal> directly, no mirrored state needed.
@@ -287,31 +322,92 @@ export default function OutputPanel({
     >
       {/* SECTION 1 — image row */}
       <Reveal revealed={isRevealing} index={0} className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-        {/* Product shot */}
+        {/* Product shot(s) — single hero, or a clean contact-sheet for bundles */}
         <div className="flex flex-col gap-3">
-          <Label>Product Shot</Label>
-          <div
-            className="h-72 w-full flex items-center justify-center p-6"
-            style={cardStyle}
-          >
-            <img
-              src={product.imageUrl}
-              alt={product.name}
-              className="max-h-full max-w-full object-contain"
-            />
+          <Label>{isBundle ? "In This Bundle" : "Product Shot"}</Label>
+          <div className="h-72 w-full overflow-hidden" style={cardStyle}>
+            {products.length === 1 ? (
+              <div className="flex h-full w-full items-center justify-center p-6">
+                <img
+                  src={products[0].imageUrl}
+                  alt={products[0].name}
+                  className="max-h-full max-w-full object-contain"
+                />
+              </div>
+            ) : (
+              <div
+                className="grid h-full w-full gap-2 p-3"
+                style={{
+                  gridTemplateColumns:
+                    products.length <= 4 ? "repeat(2,1fr)" : "repeat(3,1fr)",
+                  gridAutoRows: "1fr",
+                }}
+              >
+                {products.map((p) => (
+                  <div
+                    key={p.id}
+                    className="flex items-center justify-center p-1"
+                    style={{ backgroundColor: "var(--bg-surface-2)" }}
+                  >
+                    <img
+                      src={p.imageUrl}
+                      alt={p.name}
+                      className="max-h-full max-w-full object-contain"
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Ad creative — generated scene + real product composited on top.
+        {/* Ad creative — generated scene + tiered product composite on top.
             Keyed by imageUrl so its load state resets per generation. */}
         <AdCreative
           key={imageUrl ?? "none"}
-          product={product}
+          products={products}
           imageUrl={imageUrl}
           imageLoading={imageLoading}
-          onRegenerate={onRegenerateImage}
         />
       </Reveal>
+
+      {/* THE FULL RANGE — Tier 3 (5+ products): list every product cleanly
+          instead of cramming them all onto the scene. */}
+      {isFullRange && (
+        <Reveal revealed={isRevealing} index={1} className="flex flex-col gap-3">
+          <Label>The Full Range</Label>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+            {products.map((p) => (
+              <div key={p.id} className="flex flex-col" style={cardStyle}>
+                <div
+                  className="flex aspect-square w-full items-center justify-center p-3"
+                  style={{ backgroundColor: "#ffffff" }}
+                >
+                  <img
+                    src={p.imageUrl}
+                    alt={p.name}
+                    className="max-h-full max-w-full object-contain"
+                  />
+                </div>
+                <div
+                  className="flex items-baseline justify-between gap-2 border-t p-3"
+                  style={{ borderColor: "var(--border)" }}
+                >
+                  <span
+                    className="font-heading text-xs font-medium tracking-wide"
+                    style={{ color: "var(--text-primary)" }}
+                  >
+                    {p.name}
+                  </span>
+                  <span className="text-xs" style={{ color: "var(--accent)" }}>
+                    £{p.price}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Reveal>
+      )}
 
       {/* Campaign angle — prominent, frames everything */}
       <Reveal revealed={isRevealing} index={1} className="flex flex-col gap-3">

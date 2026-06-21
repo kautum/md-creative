@@ -77,7 +77,7 @@ export default function HistoryStrip({
           >
             <img
               src={entry.productImage}
-              alt={entry.productName}
+              alt={entry.productNames[0] ?? "campaign"}
               className="shrink-0 rounded-md object-contain"
               style={{
                 width: 40,
@@ -91,10 +91,12 @@ export default function HistoryStrip({
                   className="font-heading truncate text-xs font-medium tracking-wide"
                   style={{ color: "var(--text-primary)" }}
                 >
-                  {entry.productName}
+                  {entry.productNames.length >= 6
+                    ? "Full Range"
+                    : entry.productNames.join(" + ")}
                 </span>
                 <span
-                  className="truncate text-[10px]"
+                  className="shrink-0 text-[10px]"
                   style={{ color: "var(--accent)" }}
                 >
                   {entry.vibe}

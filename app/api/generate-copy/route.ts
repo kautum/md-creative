@@ -1,19 +1,38 @@
 import { NextResponse } from "next/server";
 import { PRODUCTS, type Product, type GeneratedCopy } from "@/lib/products";
 import { BRAND_VOICE } from "@/lib/brandVoice";
+import {
+  pickRandomStyle,
+  sceneHasBannedWords,
+  type VisualStyle,
+} from "@/lib/visualStyles";
 
 export const runtime = "nodejs";
 
-// Groq is OpenAI-compatible, free and fast. llama-3.3-70b-versatile is its
-// strongest model for instruction-following copywriting.
-const MODEL = "llama-3.3-70b-versatile";
+// Groq is OpenAI-compatible, free and fast.
+//
+// NOTE (Task 1): the brief asked for Kimi K2 (moonshotai/kimi-k2-instruct), but
+// that model is NOT provisioned on this Groq key — the /models endpoint lists 17
+// models with no Moonshot/Kimi entry. So we use the strongest *available* model
+// for non-formulaic creative copy: openai/gpt-oss-120b (the largest general
+// model on the account), a genuine step up from Llama 3.3 70B. It supports JSON
+// mode; its chain-of-thought lands in a separate `reasoning` field, so
+// `message.content` is clean JSON.
+//
+// If gpt-oss-120b free-tier rate limits (429s) become a problem during testing,
+// set GROQ_USE_FALLBACK=1 to drop back to Llama 3.3 70B without a code change.
+const PRIMARY_MODEL = "openai/gpt-oss-120b";
+const FALLBACK_MODEL = "llama-3.3-70b-versatile"; // documented fallback for 429s
+const MODEL =
+  process.env.GROQ_USE_FALLBACK === "1" ? FALLBACK_MODEL : PRIMARY_MODEL;
 const CHAT_ENDPOINT = "https://api.groq.com/openai/v1/chat/completions";
 
 type ExistingCopy = GeneratedCopy;
 type CopyResult = GeneratedCopy;
 
 interface GenerateCopyRequest {
-  productId: string;
+  productIds?: string[]; // bundle-aware (1 or many)
+  productId?: string; // legacy single-product callers
   vibe: string;
   hairConcern?: string;
   mode: "generate" | "refine";
@@ -22,19 +41,52 @@ interface GenerateCopyRequest {
 }
 
 function buildUserPrompt(
-  product: Product,
+  products: Product[],
   vibe: string,
   hairConcern: string | undefined,
   mode: "generate" | "refine",
   existingCopy: ExistingCopy | undefined,
   refineRequest: string | undefined,
+  style: VisualStyle,
 ): string {
-  const productBlock = [
-    `Product: ${product.name} (${product.category})`,
-    `What it is: ${product.tagline}`,
-    `Hair concerns it helps with: ${product.hairConcerns.join(", ")}`,
-    `Price: £${product.price}`,
-  ].join("\n");
+  const n = products.length;
+
+  const productBlock =
+    n === 1
+      ? [
+          `Product: ${products[0].name} (${products[0].category})`,
+          `What it is: ${products[0].tagline}`,
+          `Hair concerns it helps with: ${products[0].hairConcerns.join(", ")}`,
+          `Price: £${products[0].price}`,
+        ].join("\n")
+      : [
+          `This is a BUNDLE campaign featuring ${n} mdlondon products:`,
+          ...products.map(
+            (p) => `- ${p.name} (${p.category}, £${p.price}) — ${p.tagline}`,
+          ),
+        ].join("\n");
+
+  // Bundle framing so multi-product copy reads as a system, not a product list.
+  const bundleBlock =
+    n === 1
+      ? ""
+      : n >= 6
+        ? [
+            "BUNDLE MODE — THE FULL MDLONDON RANGE (6+ products, the complete system):",
+            "- campaign_angle and all copy must speak to the complete range / system as a whole. Do NOT enumerate or name individual products.",
+            "- Frame it as 'the full mdlondon range', 'the complete system', 'every step, sorted'.",
+            "- tiktok_script: keep steps conceptual (the whole routine), not product-by-product.",
+          ].join("\n")
+        : [
+            "BUNDLE MODE — a routine/kit of multiple products sold as one system:",
+            "- campaign_angle MUST tie the products together as a single idea (e.g. 'the complete " +
+              vibe +
+              " routine'), NOT a mechanical list of names.",
+            "- In flowing copy (caption, ad copy, story) refer to 'the kit', 'the routine', or 'the " +
+              vibe +
+              " edit' rather than awkwardly naming every product in a sentence.",
+            "- tiktok_script: step1 and step2 may each spotlight a DIFFERENT product from the selection (for 2-3 products). For 4 products, keep the steps conceptual rather than naming each one.",
+          ].join("\n");
 
   const briefBlock = [
     `Chosen vibe / occasion: ${vibe}`,
@@ -42,6 +94,13 @@ function buildUserPrompt(
   ]
     .filter(Boolean)
     .join("\n");
+
+  // Hard constraint that forces scene variety (Task 2).
+  const styleBlock = [
+    `For scene_for_image_gen specifically, you MUST design within this visual style direction: "${style.instruction}"`,
+    `Do NOT default to a literal bathroom, hotel room, spa, or vanity counter — those are banned unless the chosen style direction explicitly calls for a real domestic room (it does not, for any of the 9 styles).`,
+    `The campaign concept should still feel connected to the product and vibe — interpret the style direction creatively in service of the brief, don't ignore the brief.`,
+  ].join("\n");
 
   const guidelines = [
     BRAND_VOICE.instagramGuidelines,
@@ -73,12 +132,15 @@ function buildUserPrompt(
       productBlock,
       "",
       briefBlock,
+      bundleBlock ? `\n${bundleBlock}` : "",
       "",
       "You previously wrote this content:",
       JSON.stringify(existingCopy, null, 2),
       "",
       `The user wants this change: "${refineRequest ?? "Improve it."}"`,
       "Rewrite ALL fields applying that change while keeping mdlondon's voice and the guidelines below. Keep every field populated.",
+      "",
+      styleBlock,
       "",
       guidelines,
       "",
@@ -90,8 +152,13 @@ function buildUserPrompt(
     productBlock,
     "",
     briefBlock,
+    bundleBlock ? `\n${bundleBlock}` : "",
     "",
-    "Write fresh social content AND a short strategic brief for this product, tailored to the vibe and hair concern above, following the guidelines below.",
+    n === 1
+      ? "Write fresh social content AND a short strategic brief for this product, tailored to the vibe and hair concern above, following the guidelines below."
+      : "Write fresh social content AND a short strategic brief for this BUNDLE, tailored to the vibe and hair concern above, following the bundle framing and guidelines below.",
+    "",
+    styleBlock,
     "",
     guidelines,
     "",
@@ -163,6 +230,8 @@ function normalizeResult(parsed: unknown): CopyResult {
     bestPlatform: asString(obj.bestPlatform),
     ctaRecommendation: asString(obj.ctaRecommendation),
     scene_for_image_gen: asString(obj.scene_for_image_gen),
+    // Set server-side from the forced style pick (POST handler), not the model.
+    visual_style: "",
     tiktok_script: normalizeTiktok(obj.tiktok_script),
   };
 }
@@ -180,6 +249,60 @@ function normalizeTiktok(value: unknown): CopyResult["tiktok_script"] {
     cta: asString(tt.cta),
     audio_vibe: asString(tt.audio_vibe),
   };
+}
+
+/**
+ * One focused retry that regenerates ONLY the scene description when the first
+ * attempt fell back to a banned literal location (bathroom/hotel/spa/vanity).
+ * Best-effort: returns null on any failure so it never blocks the response.
+ */
+async function regenerateScene(
+  apiKey: string,
+  leadProductName: string,
+  vibe: string,
+  style: VisualStyle,
+  badScene: string,
+): Promise<string | null> {
+  const prompt = [
+    `Campaign for: ${leadProductName}. Vibe: ${vibe}.`,
+    `Visual style direction (MANDATORY): "${style.instruction}"`,
+    `Your previous scene description used a banned literal location. Regenerate scene_for_image_gen only, strictly following the visual style direction given, with zero references to bathrooms, hotel rooms, spas, or vanities.`,
+    `Previous (rejected) scene: "${badScene}"`,
+    `Respond with ONLY a JSON object: {"scene_for_image_gen": string}. 2-3 sentences. NO people, NO hair, NO product mentioned. A direct FLUX image prompt.`,
+  ].join("\n");
+
+  try {
+    const res = await fetch(CHAT_ENDPOINT, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: MODEL,
+        messages: [
+          { role: "system", content: BRAND_VOICE.systemPrompt },
+          { role: "user", content: prompt },
+        ],
+        temperature: 0.9,
+        max_tokens: 1500,
+        ...(MODEL.startsWith("openai/gpt-oss")
+          ? { reasoning_effort: "low" }
+          : {}),
+        response_format: { type: "json_object" },
+      }),
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as {
+      choices?: { message?: { content?: string } }[];
+    };
+    const c = data.choices?.[0]?.message?.content;
+    if (typeof c !== "string") return null;
+    const parsed = JSON.parse(extractJson(c)) as Record<string, unknown>;
+    return asString(parsed.scene_for_image_gen) || null;
+  } catch {
+    return null;
+  }
 }
 
 export async function POST(request: Request) {
@@ -201,23 +324,39 @@ export async function POST(request: Request) {
     );
   }
 
-  const { productId, vibe, hairConcern, mode, existingCopy, refineRequest } =
-    body ?? {};
+  const {
+    productIds,
+    productId,
+    vibe,
+    hairConcern,
+    mode,
+    existingCopy,
+    refineRequest,
+  } = body ?? {};
 
-  if (!productId || !vibe || (mode !== "generate" && mode !== "refine")) {
+  // Accept a bundle (productIds[]) or a single legacy productId.
+  const ids =
+    Array.isArray(productIds) && productIds.length > 0
+      ? productIds
+      : productId
+        ? [productId]
+        : [];
+
+  if (ids.length === 0 || !vibe || (mode !== "generate" && mode !== "refine")) {
     return NextResponse.json(
       {
         error:
-          "Missing required fields: productId, vibe and mode ('generate' | 'refine') are required.",
+          "Missing required fields: productIds (or productId), vibe and mode ('generate' | 'refine') are required.",
       },
       { status: 400 },
     );
   }
 
-  const product = PRODUCTS.find((p) => p.id === productId);
-  if (!product) {
+  // Preserve catalogue order and drop unknown ids.
+  const products = PRODUCTS.filter((p) => ids.includes(p.id));
+  if (products.length === 0) {
     return NextResponse.json(
-      { error: `Unknown productId: ${productId}` },
+      { error: `No known products in: ${ids.join(", ")}` },
       { status: 400 },
     );
   }
@@ -229,13 +368,17 @@ export async function POST(request: Request) {
     );
   }
 
+  // Force a visual-style direction so scenes don't collapse to "bathroom".
+  const style = pickRandomStyle();
+
   const userPrompt = buildUserPrompt(
-    product,
+    products,
     vibe,
     hairConcern,
     mode,
     existingCopy,
     refineRequest,
+    style,
   );
 
   let groqResponse: Response;
@@ -253,7 +396,13 @@ export async function POST(request: Request) {
           { role: "user", content: userPrompt },
         ],
         temperature: 0.8,
-        max_tokens: 2000,
+        // gpt-oss is a reasoning model whose chain-of-thought counts toward the
+        // completion budget; 2000 ran out mid-JSON. Give headroom and keep
+        // reasoning light (plenty for copywriting, and much faster).
+        max_tokens: 4096,
+        ...(MODEL.startsWith("openai/gpt-oss")
+          ? { reasoning_effort: "low" }
+          : {}),
         response_format: { type: "json_object" },
       }),
     });
@@ -306,6 +455,28 @@ export async function POST(request: Request) {
       },
       { status: 502 },
     );
+  }
+
+  // Stamp the forced style so the frontend can surface it ("Style: …").
+  result.visual_style = style.name;
+
+  // Cheap validator (Task 2): if the scene fell back to a banned literal
+  // location, make exactly one focused retry. If it still fails, proceed anyway.
+  if (sceneHasBannedWords(result.scene_for_image_gen)) {
+    const retryScene = await regenerateScene(
+      apiKey,
+      products[0].name,
+      vibe,
+      style,
+      result.scene_for_image_gen,
+    );
+    if (retryScene && !sceneHasBannedWords(retryScene)) {
+      result.scene_for_image_gen = retryScene;
+    } else {
+      console.warn(
+        `[generate-copy] scene still used a banned location after retry (style: ${style.name}).`,
+      );
+    }
   }
 
   return NextResponse.json(result);

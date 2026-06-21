@@ -2,11 +2,12 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { Check } from "lucide-react";
 import { PRODUCTS, type Product } from "@/lib/products";
 
 interface ProductGridProps {
-  selected: Product | null;
-  onSelect: (p: Product) => void;
+  selectedIds: string[];
+  onToggle: (p: Product) => void;
 }
 
 const tools = PRODUCTS.filter((p) => p.category === "tool");
@@ -15,38 +16,29 @@ const numbers = PRODUCTS.filter((p) => p.category === "number");
 function ProductCard({
   product,
   isSelected,
-  anySelected,
-  onSelect,
+  onToggle,
 }: {
   product: Product;
   isSelected: boolean;
-  anySelected: boolean;
-  onSelect: (p: Product) => void;
+  onToggle: (p: Product) => void;
 }) {
-  const dimmed = anySelected && !isSelected;
-
   return (
     <motion.button
       type="button"
-      onClick={() => onSelect(product)}
+      onClick={() => onToggle(product)}
       variants={{
         hidden: { opacity: 0, y: 12 },
         visible: { opacity: 1, y: 0 },
       }}
-      animate={{
-        scale: isSelected ? 1.03 : 1,
-        opacity: dimmed ? 0.55 : 1,
-        y: 0,
-      }}
+      animate={{ scale: isSelected ? 1.03 : 1, y: 0 }}
       whileHover={isSelected ? undefined : { scale: 1.02 }}
       transition={{ duration: 0.2, ease: "easeOut" }}
-      className="group text-left flex flex-col focus:outline-none"
+      className="group relative flex flex-col text-left focus:outline-none"
       style={{
         backgroundColor: "var(--bg-surface)",
         border: `2px solid ${isSelected ? "var(--accent)" : "var(--border)"}`,
         transition: "border-color 0.2s ease",
       }}
-      // Subtle orange top border on hover (unselected cards only).
       onMouseEnter={(e) => {
         if (!isSelected) e.currentTarget.style.borderTopColor = "var(--accent)";
       }}
@@ -54,6 +46,16 @@ function ProductCard({
         if (!isSelected) e.currentTarget.style.borderTopColor = "var(--border)";
       }}
     >
+      {/* selected checkmark badge */}
+      {isSelected && (
+        <span
+          className="absolute right-2 top-2 z-10 flex h-5 w-5 items-center justify-center rounded-full"
+          style={{ backgroundColor: "var(--accent)", color: "#fff" }}
+        >
+          <Check size={13} strokeWidth={3} />
+        </span>
+      )}
+
       <div
         className="aspect-square w-full flex items-center justify-center p-4"
         style={{ backgroundColor: "var(--bg-surface)" }}
@@ -94,18 +96,18 @@ function ProductCard({
 function Section({
   label,
   items,
-  selected,
-  onSelect,
+  selectedIds,
+  onToggle,
 }: {
   label: string;
   items: Product[];
-  selected: Product | null;
-  onSelect: (p: Product) => void;
+  selectedIds: string[];
+  onToggle: (p: Product) => void;
 }) {
+  const count = items.filter((p) => selectedIds.includes(p.id)).length;
   return (
     <div className="flex flex-col gap-4">
       <span className="flex items-center gap-2.5">
-        {/* Decorative orange dot. */}
         <span
           aria-hidden
           className="inline-block h-2 w-2 rounded-full"
@@ -117,6 +119,14 @@ function Section({
         >
           {label}
         </span>
+        {count > 0 && (
+          <span
+            className="text-[10px] font-medium uppercase tracking-[0.18em]"
+            style={{ color: "var(--accent)" }}
+          >
+            {count} selected
+          </span>
+        )}
       </span>
       <motion.div
         className="grid grid-cols-2 md:grid-cols-3 gap-4"
@@ -128,9 +138,8 @@ function Section({
           <ProductCard
             key={p.id}
             product={p}
-            isSelected={selected?.id === p.id}
-            anySelected={selected !== null}
-            onSelect={onSelect}
+            isSelected={selectedIds.includes(p.id)}
+            onToggle={onToggle}
           />
         ))}
       </motion.div>
@@ -138,20 +147,20 @@ function Section({
   );
 }
 
-export default function ProductGrid({ selected, onSelect }: ProductGridProps) {
+export default function ProductGrid({ selectedIds, onToggle }: ProductGridProps) {
   return (
     <div className="flex flex-col gap-10">
       <Section
         label="Tools"
         items={tools}
-        selected={selected}
-        onSelect={onSelect}
+        selectedIds={selectedIds}
+        onToggle={onToggle}
       />
       <Section
         label="The Numbers"
         items={numbers}
-        selected={selected}
-        onSelect={onSelect}
+        selectedIds={selectedIds}
+        onToggle={onToggle}
       />
     </div>
   );

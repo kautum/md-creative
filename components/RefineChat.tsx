@@ -5,13 +5,15 @@ import { motion } from "framer-motion";
 import type { Product, GeneratedCopy } from "@/lib/products";
 
 interface RefineChatProps {
-  product: Product;
+  products: Product[];
+  vibe: string;
   currentCopy: GeneratedCopy;
   onRefined: (newCopy: GeneratedCopy) => void;
 }
 
 export default function RefineChat({
-  product,
+  products,
+  vibe,
   currentCopy,
   onRefined,
 }: RefineChatProps) {
@@ -32,10 +34,8 @@ export default function RefineChat({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          productId: product.id,
-          // Vibe is required by the route; reuse the product's lead vibe so a
-          // refine call stays valid even though the user only typed a tweak.
-          vibe: product.bestFor[0] ?? "Professional",
+          productIds: products.map((p) => p.id),
+          vibe,
           mode: "refine",
           existingCopy: currentCopy,
           refineRequest: request,
