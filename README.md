@@ -13,6 +13,8 @@ for the Junior AI Developer role at [mdlondon](https://mdlondon.com)*
 ![Tailwind](https://img.shields.io/badge/Tailwind_v4-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white)
 ![Vercel](https://img.shields.io/badge/Vercel-black?style=flat-square&logo=vercel)
 
+**[→ Live demo: md-creative.vercel.app](https://md-creative.vercel.app)**
+
 ![Overview](public/screenshots/overview.png)
 
 </div>
@@ -29,10 +31,10 @@ recreating our product range in AI-generated environments, right message to the 
 person."* That is not a chatbot problem. It is a content-generation pipeline problem.
 
 **md creative.** is what that brief asked for: pick a product, set the vibe and hair
-concern, and receive a complete campaign in under 30 seconds — on-brand copy across
-every format their team actually uses (Instagram caption, paid ad variants, TikTok
-script, campaign angle, creative direction, audience brief) alongside an AI-generated
-lifestyle scene with the real product composited into it.
+concern, and get a complete campaign in one pass — copy in a few seconds, the lifestyle
+scene moments behind it. It produces on-brand copy in every format their team actually
+uses (Instagram caption, paid ad variants, TikTok script, campaign angle, creative
+direction, audience brief), then composites the real product into an AI-generated scene.
 
 ---
 
@@ -80,7 +82,12 @@ The image compositing adapts to the selection size:
 
 - **Tier 1 — single product:** hero shot, product cutout centred on the scene
 - **Tier 2 — 2 to 4 products:** editorial flat-lay, real-scale proportional layout
-- **Tier 3 — 5+ products:** pure atmosphere scene + "The Full Range" product grid
+- **Tier 3 — 5+ products:** the Ad Creative becomes a pure atmosphere scene with no
+  product overlay — five or more cutouts on one scene reads as clutter, so instead every
+  selected product appears cleanly in a "The Full Range" grid below the scene
+
+This tiering is deliberate: the composite earns its place at one to four products, and
+steps aside for a clean product grid when there are too many to stage well.
 
 ![Bundle mode](public/screenshots/bundle.png)
 
@@ -103,9 +110,9 @@ actually look like when it goes live?*
 
 ### The generation pipeline
 
-Generation is sequential, not parallel. This was a deliberate decision:
+Generation runs sequentially, not in parallel — a deliberate choice:
 
-```
+```text
 1. Groq generates all copy fields, including scene_for_image_gen
    (a FLUX-ready scene description built from the campaign angle)
         ↓
@@ -116,15 +123,15 @@ Generation is sequential, not parallel. This was a deliberate decision:
    (no server-side timeout risk; skeleton UX covers the wait)
 ```
 
-If generation ran in parallel, the image would be generated from a generic per-vibe
-hardcoded prompt. Sequential means the image is generated from the same creative
-brief as the copy.
+Run in parallel, the image would fall back to a generic, hardcoded per-vibe prompt.
+Running it after the copy means the scene comes from the same creative brief as the
+words — one campaign concept, not two unrelated ones.
 
 ### The scene variety problem
 
-Early testing revealed that without explicit constraints, the LLM collapsed to the
-same three scene types regardless of vibe: bathroom, hotel room, or spa. This was
-the most-common training-data association for "lifestyle product photography."
+Without explicit constraints, the LLM collapsed to the same three scenes regardless of
+vibe — bathroom, hotel room, or spa, the most common training-data association for
+"lifestyle product photography."
 
 The fix: a pool of 9 distinct visual style categories, each with an explicit
 instruction that bans the literal-location defaults:
@@ -163,27 +170,25 @@ The approach used in production:
    blob. This removes the disconnected cord/cable fragments that appeared in early tests
    without stripping genuine thin product details.
 
-3. **Contact shadows.** A synthetic shadow ellipse is drawn under each product, sized
-   to that product's real physical footprint (estimated from height data), so heavier
-   products cast proportionally stronger shadows.
+3. **Contact shadows.** Each product gets a synthetic shadow ellipse sized to its real
+   physical footprint (estimated from height data), so heavier products cast
+   proportionally stronger shadows and stop looking like floating cut-outs.
 
 4. **Real-scale layout.** The original flat-lay used fixed-percentage widths, which made
    a £15 spray bottle render at nearly the same size as a £195 hair dryer. Each product
    now has an estimated real-world height (cm) in the data model; the flat-lay sizes
    products proportionally relative to the tallest selected product.
 
-**Known limitation:** the cutout preserves the product's original studio lighting. On a
-warm or saturated scene, the product reads as composited rather than naturally lit.
-Fixing this requires a relighting-capable image-to-image model (e.g. Pollinations'
-`kontext`, tested during development but gated behind a paid tier).
+This cutout keeps the product's own studio lighting; it can't relight the product to
+match the scene — the one trade-off this approach can't solve. See **Known limitations**
+below for where that bites and how a production version would fix it.
 
 ### LLM selection
 
-The text generation model is **`openai/gpt-oss-120b`** via Groq's free tier, selected
-after testing against the alternatives on the Artificial Analysis intelligence leaderboard.
-It scores ~24 on their index vs ~9 for Llama 3.3 70B, a real quality difference that
-shows in copy — short-form marketing copy is particularly sensitive to the model's ability
-to write non-formulaic sentences.
+The text generation model is **`openai/gpt-oss-120b`** via Groq's free tier, chosen
+after comparing the available free-tier Groq models head to head. It writes noticeably
+less formulaic copy than Llama 3.3 70B — which matters for short-form marketing, where
+generic phrasing is immediately visible to a reader.
 
 Because gpt-oss-120b is a reasoning model, `reasoning_effort` is set to `"low"` and
 `max_tokens` is raised to 4096 to prevent the reasoning chain from consuming the entire
@@ -214,13 +219,13 @@ content, not polished ad voiceover.
 | Framework | Next.js 16 App Router | File-based routing, server components, API routes in one repo |
 | Language | TypeScript | Type safety across the generation pipeline and component tree |
 | Styling | Tailwind v4 | CSS variables + utility classes; theme tokens in one place |
-| LLM (text) | Groq + gpt-oss-120b | Free tier, fast inference, highest intelligence index of available free models |
+| LLM (text) | Groq + gpt-oss-120b | Free tier, fast inference, least formulaic copy of the free models tested |
 | LLM (fallback) | Groq + Llama 3.3 70B | Higher TPM than primary; same provider, zero config change |
 | Image generation | Pollinations.ai (flux) | Completely free, no API key, browser-loadable URL |
 | Compositing | Browser canvas + flood-fill | Zero cost, no external API; cutout quality sufficient for Tier 1/2 |
 | Animation | Framer Motion | Stagger, reveal, and typewriter effects |
 | Fonts | Quicksand + Jost + Hanken Grotesk | Match mdlondon's rounded-sans wordmark; Jost for editorial nav |
-| Hosting | Vercel | Free tier, auto-deploys from GitHub, 60s function timeout covers Groq |
+| Hosting | Vercel | Free tier, auto-deploys from GitHub; the Groq call finishes well within the function timeout |
 
 ---
 
@@ -250,14 +255,16 @@ reads as placed rather than naturally lit. Fixing this requires a relighting-cap
 reference-image model (tested with Pollinations `kontext`, gated behind paid access at
 time of build).
 
-**Compositing quality degrades with product count.** Single-product composites are
-cleanest. 2–4 product flat-lays are serviceable for ideation. The contact shadow and
-scale fixes address the worst cases but the result is a directional concept, not a
-finished ad.
+**Composite realism is strongest at one product.** A single hero composite is the
+cleanest. The 2–4 flat-lays are strong for ideation but still read as a directional
+concept, not a finished ad — mostly because of the lighting mismatch above. At 5+
+products the overlay steps aside by design (see Bundle mode), so this is a one-to-four
+consideration, not a degradation as the count climbs.
 
-**Groq free-tier rate limits.** The gpt-oss-120b model has ~8000 TPM on the free tier.
-Rapid back-to-back generations will trigger the fallback chain, and sustained bursts may
-result in a friendly error. Use a paid key for heavy testing.
+**Groq free-tier rate limits.** gpt-oss-120b has a low tokens-per-minute ceiling on the
+free tier. Rapid back-to-back generations trigger the fallback chain, and sustained bursts
+surface a friendly "running on backup model" or "busy, try again" message instead of a raw
+error. A paid key removes the ceiling for heavy use.
 
 **Image load latency.** Pollinations can take 10–25 seconds depending on load. The cycling
 progress indicator covers the wait, but it is a real wait.
