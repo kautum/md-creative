@@ -110,7 +110,7 @@ export default function HistoryStrip({
               </span>
               <span
                 className="text-[10px]"
-                style={{ color: "rgba(255,255,255,0.35)" }}
+                style={{ color: "var(--text-dim)" }}
               >
                 {relativeTime(entry.timestamp)}
               </span>

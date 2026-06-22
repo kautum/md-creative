@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Jost, Hanken_Grotesk } from "next/font/google";
+import { Jost, Hanken_Grotesk, Quicksand } from "next/font/google";
 import "./globals.css";
 
 // mdlondon uses Co-Headline (geometric) for headings and Niveau-Grotesk
@@ -19,6 +19,16 @@ const body = Hanken_Grotesk({
   variable: "--font-body",
 });
 
+// Wordmark font. mdlondon's actual "mdlondon." mark is a SOFT ROUNDED UPRIGHT
+// sans with a coral period (observed on mdlondon.com — NOT the italic serif the
+// brief guessed). Quicksand is the closest free match to that rounded-humanist
+// character, so "md creative." reads as a sibling of "mdlondon.".
+const brand = Quicksand({
+  subsets: ["latin"],
+  weight: ["400", "500"],
+  variable: "--font-brand",
+});
+
 export const metadata: Metadata = {
   title: "MD Creative",
   description: "AI-powered social content generator for mdlondon.",
@@ -32,57 +42,46 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${heading.variable} ${body.variable} h-full antialiased`}
+      className={`${heading.variable} ${body.variable} ${brand.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        {/* Editorial block-capitals masthead — stark, full-width. */}
+        {/* Masthead — mdlondon's slate-green dark bar; the orange top rule is
+            gone (it clashed with the near-black look the brief described and the
+            slate-green is striking on its own). */}
         <header
-          className="w-full flex flex-row items-end justify-between py-5 px-8"
+          className="w-full flex flex-row items-baseline justify-between py-5 px-8"
           style={{
             backgroundColor: "var(--bg-dark)",
-            borderTop: "4px solid #FF5C00",
-            borderBottom: "1px solid rgba(255,255,255,0.12)",
+            borderBottom: "1px solid rgba(255,255,255,0.1)",
           }}
         >
+          {/* Wordmark — lowercase rounded sans + coral period, echoing
+              "mdlondon." (the period is a deliberate brand mark, coloured to
+              match mdlondon's own coral full-stop). */}
+          <span
+            style={{
+              fontFamily: "var(--font-brand), system-ui, sans-serif",
+              fontSize: "clamp(1.6rem, 3vw, 2.4rem)",
+              fontWeight: 500,
+              letterSpacing: "0.02em",
+              color: "var(--text-on-dark)",
+              lineHeight: 1,
+              whiteSpace: "nowrap",
+            }}
+          >
+            md creative<span style={{ color: "var(--accent)" }}>.</span>
+          </span>
           <span
             style={{
               fontFamily: "var(--font-heading), system-ui, sans-serif",
-              fontSize: "clamp(1.8rem, 3.5vw, 2.8rem)",
-              fontWeight: 300,
-              letterSpacing: "0.38em",
-              color: "#FF5C00",
+              fontWeight: 400,
+              fontSize: "0.7rem",
+              color: "rgba(255,255,255,0.7)",
+              letterSpacing: "0.2em",
               textTransform: "uppercase",
-              lineHeight: 1,
             }}
           >
-            MD Creative
-          </span>
-          <span className="flex flex-col items-end text-right">
-            <span
-              style={{
-                fontFamily: "var(--font-heading), system-ui, sans-serif",
-                fontWeight: 400,
-                fontSize: "0.7rem",
-                color: "#FFFFFF",
-                letterSpacing: "0.22em",
-                textTransform: "uppercase",
-              }}
-            >
-              For mdlondon
-            </span>
-            <span
-              style={{
-                fontFamily: "var(--font-heading), system-ui, sans-serif",
-                fontWeight: 400,
-                fontSize: "0.7rem",
-                color: "#FFFFFF",
-                letterSpacing: "0.22em",
-                textTransform: "uppercase",
-                opacity: 0.55,
-              }}
-            >
-              By Kautum
-            </span>
+            for mdlondon · by kautum
           </span>
         </header>
         <main className="flex-1">{children}</main>

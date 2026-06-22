@@ -21,7 +21,7 @@ function Label({ children }: { children: React.ReactNode }) {
   return (
     <span
       className="font-heading text-xs font-medium uppercase tracking-[0.25em]"
-      style={{ color: "var(--text-muted)" }}
+      style={{ color: "var(--text-dim)" }}
     >
       {children}
     </span>
@@ -130,6 +130,37 @@ function buildPollinationsRetryUrl(
   }
 }
 
+// Scene generation via Pollinations can take ~20-25s. A static "Generating..."
+// for that long reads as stuck, so we cycle perceived-progress phases (slower
+// than the copy-generation cycle, since this wait is longer) and hold on the
+// last one rather than looping back to the start.
+const SCENE_STEPS = [
+  "✦ Composing the scene...",
+  "✦ Placing the light...",
+  "✦ Adding final detail...",
+  "✦ Almost there...",
+];
+
+function SceneProgress() {
+  const [i, setI] = useState(0);
+  useEffect(() => {
+    const id = setInterval(
+      () => setI((n) => Math.min(n + 1, SCENE_STEPS.length - 1)),
+      5500,
+    );
+    return () => clearInterval(id);
+  }, []);
+  return (
+    <span
+      key={i}
+      className="animate-fade-in-up text-xs uppercase tracking-[0.15em]"
+      style={{ color: "var(--text-muted)" }}
+    >
+      {SCENE_STEPS[i]}
+    </span>
+  );
+}
+
 /**
  * Ad creative card — the Pollinations URL is returned instantly and the browser
  * loads the (slow) image natively, so we show a teal skeleton until it paints.
@@ -218,12 +249,7 @@ function AdCreative({
                     Scene generation failed — retry
                   </button>
                 ) : (
-                  <span
-                    className="text-xs uppercase tracking-[0.15em]"
-                    style={{ color: "var(--text-muted)" }}
-                  >
-                    Generating scene...
-                  </span>
+                  <SceneProgress />
                 )}
               </div>
             )}
@@ -233,12 +259,7 @@ function AdCreative({
             className="absolute inset-0 flex items-center justify-center animate-pulse"
             style={{ backgroundColor: "var(--skeleton)" }}
           >
-            <span
-              className="text-xs uppercase tracking-[0.15em]"
-              style={{ color: "var(--text-muted)" }}
-            >
-              Generating scene...
-            </span>
+            <SceneProgress />
           </div>
         ) : (
           <div className="h-full w-full flex items-center justify-center">
@@ -460,7 +481,7 @@ export default function OutputPanel({
           <div className="relative group pr-8">
             <p
               className="text-sm italic leading-relaxed"
-              style={{ color: "var(--text-muted)" }}
+              style={{ color: "var(--text-secondary)" }}
             >
               {copyResult.creativeDirection}
             </p>
@@ -472,6 +493,17 @@ export default function OutputPanel({
             />
           </div>
         ) : null}
+
+        {/* Graceful-degradation note: the primary model was rate-limited and we
+            fell back. Subtle, friendly — never the raw provider error. */}
+        {!copyLoading && copyResult?.model_used === "fallback" && (
+          <p
+            className="text-[11px] italic"
+            style={{ color: "var(--text-muted)" }}
+          >
+            Running on a backup writing model — results may vary slightly.
+          </p>
+        )}
       </Reveal>
 
       {/* Instagram */}
@@ -512,8 +544,9 @@ export default function OutputPanel({
                       key={`${tag}-${i}`}
                       className="text-[10px] font-medium uppercase tracking-[0.15em] px-3 py-1"
                       style={{
+                        backgroundColor: "var(--bg-surface-2)",
                         border: "1px solid var(--border)",
-                        color: "var(--text-muted)",
+                        color: "var(--text-secondary)",
                       }}
                     >
                       {tag}

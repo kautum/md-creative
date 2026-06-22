@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import confetti from "canvas-confetti";
 import {
@@ -52,6 +52,12 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
 
+  // Monotonic id for the current generation. Bumped on every new generation AND
+  // whenever the selection changes / a campaign is restored, so an in-flight
+  // async that resolves late can check it's still current before applying state
+  // — a stale result is discarded instead of overwriting the new selection.
+  const genIdRef = useRef(0);
+
   const isGenerating = copyLoading || imageLoading;
 
   // Selected products in catalogue order (stable — bundle layouts index into it).
@@ -76,8 +82,10 @@ export default function Home() {
 
   const generationStep = GENERATION_STEPS[stepIndex % GENERATION_STEPS.length];
 
-  // Any change to the selection invalidates the current output.
+  // Any change to the selection invalidates the current output — and any
+  // generation still in flight (bumping the id discards its late result).
   const clearOutput = () => {
+    genIdRef.current += 1;
     setCopyResult(null);
     setImageUrl(null);
     setHasGenerated(false);
@@ -101,6 +109,7 @@ export default function Home() {
     products: Product[],
     vibe: string,
     concern: string | null,
+    genId: number,
   ): Promise<GeneratedCopy | null> => {
     setCopyLoading(true);
     try {
@@ -115,15 +124,20 @@ export default function Home() {
         }),
       });
       const data = await res.json();
+      // Selection changed (or a newer generation started) while we waited —
+      // discard this result silently rather than applying it.
+      if (genIdRef.current !== genId) return null;
       if (!res.ok) throw new Error(data?.error ?? `Copy failed (${res.status}).`);
       const copy = data as GeneratedCopy;
       setCopyResult(copy);
       return copy;
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Copy generation failed.");
+      if (genIdRef.current === genId) {
+        setError(err instanceof Error ? err.message : "Copy generation failed.");
+      }
       return null;
     } finally {
-      setCopyLoading(false);
+      if (genIdRef.current === genId) setCopyLoading(false);
     }
   };
 
@@ -131,6 +145,7 @@ export default function Home() {
     sceneDescription: string,
     leadProductName: string,
     vibe: string,
+    genId: number,
   ): Promise<string | null> => {
     setImageLoading(true);
     try {
@@ -144,15 +159,18 @@ export default function Home() {
         }),
       });
       const data = await res.json();
+      if (genIdRef.current !== genId) return null; // stale — discard
       if (!res.ok) throw new Error(data?.error ?? `Image failed (${res.status}).`);
       const url = (data as GeneratedImage).imageUrl;
       setImageUrl(url);
       return url;
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Image generation failed.");
+      if (genIdRef.current === genId) {
+        setError(err instanceof Error ? err.message : "Image generation failed.");
+      }
       return null;
     } finally {
-      setImageLoading(false);
+      if (genIdRef.current === genId) setImageLoading(false);
     }
   };
 
@@ -160,32 +178,43 @@ export default function Home() {
   // caption (keyed by text in OutputPanel). The image is left untouched.
   const handleRegenerateCopy = () => {
     if (selectedProducts.length === 0 || !selectedVibe || copyLoading) return;
-    void runCopy(selectedProducts, selectedVibe, selectedHairConcern);
+    const myId = (genIdRef.current += 1);
+    void runCopy(selectedProducts, selectedVibe, selectedHairConcern, myId);
   };
 
   const handleGenerate = () => {
     if (selectedProducts.length === 0 || !selectedVibe || isGenerating) return;
     const products = selectedProducts;
     const vibe = selectedVibe;
+    const myId = (genIdRef.current += 1);
     setError(null);
     setHasGenerated(true);
     setIsRevealing(false);
     setStepIndex(0);
     // Sequential: copy first (typewriter kicks in fast), then the scene Groq
-    // purpose-built for this campaign. Reveal once both settle.
+    // purpose-built for this campaign. Reveal once both settle. Each await is
+    // followed by a freshness check so a selection change mid-flight discards
+    // this run rather than landing on top of the new selection.
     void (async () => {
-      const copy = await runCopy(products, vibe, selectedHairConcern);
+      const copy = await runCopy(products, vibe, selectedHairConcern, myId);
+      if (genIdRef.current !== myId) return;
       let url: string | null = null;
       if (copy) {
-        url = await runImage(copy.scene_for_image_gen, products[0].name, vibe);
+        url = await runImage(
+          copy.scene_for_image_gen,
+          products[0].name,
+          vibe,
+          myId,
+        );
       }
+      if (genIdRef.current !== myId) return;
       setIsRevealing(true);
       if (copy) {
         confetti({
           particleCount: 80,
           spread: 60,
           origin: { y: 0.6 },
-          colors: ["#FF5C00", "#ffffff", "#2A4F4F"],
+          colors: ["#FF5C00", "#36423D", "#E0A155"],
           disableForReducedMotion: true,
         });
         const entry: HistoryEntry = {
@@ -213,6 +242,8 @@ export default function Home() {
       PRODUCTS.some((p) => p.id === id),
     );
     if (ids.length === 0) return;
+    // Invalidate any in-flight generation so it can't overwrite the restore.
+    genIdRef.current += 1;
     setSelectedProductIds(ids);
     setSelectedVibe(entry.vibe);
     setSelectedHairConcern(entry.hairConcern);
@@ -245,7 +276,7 @@ export default function Home() {
           >
             Social Content Generator
           </h1>
-          <p className="text-sm" style={{ color: "var(--text-muted)" }}>
+          <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
             Pick one product — or a few for a bundle — set the vibe, and generate
             on-brand captions, ad copy and a lifestyle scene.
           </p>

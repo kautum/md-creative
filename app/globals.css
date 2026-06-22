@@ -1,18 +1,24 @@
 @import "tailwindcss";
 
-/* MD Creative — dark teal theme */
+/* MD Creative — light mdlondon theme (warm off-white body, slate-green dark) */
 :root {
-  --bg-primary: #1e3d3d; /* dark teal — page bg */
-  --bg-surface: #2a4f4f; /* medium teal — cards, panels */
-  --bg-surface-2: #1a3535; /* deeper teal — nested elements */
-  --bg-dark: #162e2e; /* darker teal — header bar */
-  --border: #3d6666; /* teal border */
-  --border-strong: #4d7a7a; /* hover border */
-  --text-primary: #ffffff; /* white */
-  --text-muted: rgba(255, 255, 255, 0.55); /* soft white */
-  --accent: #ff5c00; /* mdlondon orange */
+  --bg-primary: #f7f6f4; /* warm off-white page body — slightly cream, not stark */
+  --bg-surface: #ffffff; /* pure white for cards */
+  --bg-surface-2: #f0efed; /* warm white for nested/secondary cards */
+  /* mdlondon's real header/nav is a dark slate green-grey, NOT near-black —
+     observed on mdlondon.com (A0). Used for the masthead + the dark band. */
+  --bg-dark: #36423d;
+  --border: rgba(0, 0, 0, 0.09); /* subtle dark border on white */
+  --border-strong: rgba(0, 0, 0, 0.18);
+  --text-primary: #111111; /* near-black body text */
+  --text-muted: #6e6e6e; /* readable muted grey on white (most components use this) */
+  --text-secondary: #444444; /* stronger secondary text */
+  --text-dim: #888888; /* dim labels */
+  --text-on-dark: #ffffff; /* text ON the dark masthead/band only */
+  --accent: #ff5c00; /* orange CTA — reads close to mdlondon's coral mark */
   --accent-hover: #e05000;
-  --skeleton: #2a5050; /* teal skeleton */
+  --accent-teal: #1e4d4d; /* teal as accent only, not canvas */
+  --skeleton: #e8e8e6; /* warm grey skeleton loaders on white */
 }
 
 /* Hanken Grotesk is forced as the document-wide default here: every element

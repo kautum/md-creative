@@ -417,7 +417,7 @@ export default function PlatformPreviews({
           <span
             className="font-heading uppercase"
             style={{
-              color: "var(--text-muted)",
+              color: "rgba(255,255,255,0.6)",
               fontSize: "0.8rem",
               letterSpacing: "0.34em",
             }}

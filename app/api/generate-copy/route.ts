@@ -22,10 +22,122 @@ export const runtime = "nodejs";
 // If gpt-oss-120b free-tier rate limits (429s) become a problem during testing,
 // set GROQ_USE_FALLBACK=1 to drop back to Llama 3.3 70B without a code change.
 const PRIMARY_MODEL = "openai/gpt-oss-120b";
-const FALLBACK_MODEL = "llama-3.3-70b-versatile"; // documented fallback for 429s
-const MODEL =
-  process.env.GROQ_USE_FALLBACK === "1" ? FALLBACK_MODEL : PRIMARY_MODEL;
+const FALLBACK_MODEL = "llama-3.3-70b-versatile"; // higher TPM headroom for 429 fallback
 const CHAT_ENDPOINT = "https://api.groq.com/openai/v1/chat/completions";
+
+// One short backoff before a single invisible retry — standard practice, not a
+// retry loop. If the primary is still rate-limited after that, we fall back to
+// the higher-headroom model for this one generation.
+const RETRY_BACKOFF_MS = 1500;
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+type ModelUsed = "primary" | "fallback";
+
+/** Thrown when every model attempt fails; carries a human-friendly message. */
+class CopyGenerationError extends Error {}
+
+interface GroqCallResult {
+  ok: boolean;
+  status: number;
+  content?: string;
+  detail?: string;
+}
+
+/** A single Groq chat call. Never throws — failures come back as { ok: false }. */
+async function callGroqChat(
+  apiKey: string,
+  model: string,
+  messages: { role: string; content: string }[],
+  opts: { temperature: number; maxTokens: number },
+): Promise<GroqCallResult> {
+  let res: Response;
+  try {
+    res = await fetch(CHAT_ENDPOINT, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model,
+        messages,
+        temperature: opts.temperature,
+        max_tokens: opts.maxTokens,
+        // gpt-oss is a reasoning model; keep reasoning light (plenty for copy,
+        // and much faster). Llama ignores this field.
+        ...(model.startsWith("openai/gpt-oss")
+          ? { reasoning_effort: "low" }
+          : {}),
+        response_format: { type: "json_object" },
+      }),
+    });
+  } catch (err) {
+    return {
+      ok: false,
+      status: 0,
+      detail: err instanceof Error ? err.message : String(err),
+    };
+  }
+  if (!res.ok) {
+    const detail = await res.text().catch(() => "");
+    return { ok: false, status: res.status, detail: detail.slice(0, 500) };
+  }
+  try {
+    const data = (await res.json()) as {
+      choices?: { message?: { content?: string } }[];
+    };
+    const c = data.choices?.[0]?.message?.content;
+    if (typeof c !== "string" || c.trim() === "") {
+      return { ok: false, status: res.status, detail: "empty completion" };
+    }
+    return { ok: true, status: res.status, content: c };
+  } catch {
+    return { ok: false, status: res.status, detail: "unexpected response shape" };
+  }
+}
+
+/**
+ * Generate copy with a graceful fallback chain:
+ *   primary → (one retry after backoff on transient failure) → fallback model.
+ * A 429 (rate limit) or 5xx counts as transient. Returns which model produced
+ * the result so the UI can show a subtle note. Throws CopyGenerationError only
+ * when every attempt fails — the caller turns that into a human message.
+ */
+async function generateCopyWithFallback(
+  apiKey: string,
+  messages: { role: string; content: string }[],
+): Promise<{ content: string; modelUsed: ModelUsed }> {
+  const primaryModel =
+    process.env.GROQ_USE_FALLBACK === "1" ? FALLBACK_MODEL : PRIMARY_MODEL;
+  const callOpts = { temperature: 0.8, maxTokens: 4096 };
+  const isTransient = (s: number) => s === 429 || s >= 500;
+
+  // Attempt 1 — primary.
+  let attempt = await callGroqChat(apiKey, primaryModel, messages, callOpts);
+  if (attempt.ok) return { content: attempt.content!, modelUsed: "primary" };
+
+  // One invisible retry on a transient failure, after a short backoff.
+  if (isTransient(attempt.status)) {
+    await sleep(RETRY_BACKOFF_MS);
+    attempt = await callGroqChat(apiKey, primaryModel, messages, callOpts);
+    if (attempt.ok) return { content: attempt.content!, modelUsed: "primary" };
+  }
+
+  // Still failing transiently — fall back to the higher-headroom model once
+  // (skip if the primary already IS the fallback, e.g. GROQ_USE_FALLBACK=1).
+  if (primaryModel !== FALLBACK_MODEL && isTransient(attempt.status)) {
+    const fb = await callGroqChat(apiKey, FALLBACK_MODEL, messages, callOpts);
+    if (fb.ok) return { content: fb.content!, modelUsed: "fallback" };
+    attempt = fb;
+  }
+
+  console.warn(
+    `[generate-copy] all model attempts failed (last status ${attempt.status}): ${attempt.detail ?? ""}`,
+  );
+  throw new CopyGenerationError(
+    "Our writing model is busy right now — give it a few seconds and try again.",
+  );
+}
 
 type ExistingCopy = GeneratedCopy;
 type CopyResult = GeneratedCopy;
@@ -258,6 +370,7 @@ function normalizeTiktok(value: unknown): CopyResult["tiktok_script"] {
  */
 async function regenerateScene(
   apiKey: string,
+  model: string,
   leadProductName: string,
   vibe: string,
   style: VisualStyle,
@@ -271,34 +384,18 @@ async function regenerateScene(
     `Respond with ONLY a JSON object: {"scene_for_image_gen": string}. 2-3 sentences. NO people, NO hair, NO product mentioned. A direct FLUX image prompt.`,
   ].join("\n");
 
+  const r = await callGroqChat(
+    apiKey,
+    model,
+    [
+      { role: "system", content: BRAND_VOICE.systemPrompt },
+      { role: "user", content: prompt },
+    ],
+    { temperature: 0.9, maxTokens: 1500 },
+  );
+  if (!r.ok || !r.content) return null;
   try {
-    const res = await fetch(CHAT_ENDPOINT, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: MODEL,
-        messages: [
-          { role: "system", content: BRAND_VOICE.systemPrompt },
-          { role: "user", content: prompt },
-        ],
-        temperature: 0.9,
-        max_tokens: 1500,
-        ...(MODEL.startsWith("openai/gpt-oss")
-          ? { reasoning_effort: "low" }
-          : {}),
-        response_format: { type: "json_object" },
-      }),
-    });
-    if (!res.ok) return null;
-    const data = (await res.json()) as {
-      choices?: { message?: { content?: string } }[];
-    };
-    const c = data.choices?.[0]?.message?.content;
-    if (typeof c !== "string") return null;
-    const parsed = JSON.parse(extractJson(c)) as Record<string, unknown>;
+    const parsed = JSON.parse(extractJson(r.content)) as Record<string, unknown>;
     return asString(parsed.scene_for_image_gen) || null;
   } catch {
     return null;
@@ -381,66 +478,26 @@ export async function POST(request: Request) {
     style,
   );
 
-  let groqResponse: Response;
-  try {
-    groqResponse = await fetch(CHAT_ENDPOINT, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: MODEL,
-        messages: [
-          { role: "system", content: BRAND_VOICE.systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-        temperature: 0.8,
-        // gpt-oss is a reasoning model whose chain-of-thought counts toward the
-        // completion budget; 2000 ran out mid-JSON. Give headroom and keep
-        // reasoning light (plenty for copywriting, and much faster).
-        max_tokens: 4096,
-        ...(MODEL.startsWith("openai/gpt-oss")
-          ? { reasoning_effort: "low" }
-          : {}),
-        response_format: { type: "json_object" },
-      }),
-    });
-  } catch (err) {
-    return NextResponse.json(
-      {
-        error: "Failed to reach the Groq API.",
-        detail: err instanceof Error ? err.message : String(err),
-      },
-      { status: 502 },
-    );
-  }
-
-  if (!groqResponse.ok) {
-    const detail = await groqResponse.text().catch(() => "");
-    return NextResponse.json(
-      {
-        error: `Groq API returned ${groqResponse.status}.`,
-        detail: detail.slice(0, 500),
-      },
-      { status: 502 },
-    );
-  }
-
   let content: string;
+  let modelUsed: ModelUsed;
   try {
-    const data = (await groqResponse.json()) as {
-      choices?: { message?: { content?: string } }[];
-    };
-    const c = data.choices?.[0]?.message?.content;
-    if (typeof c !== "string" || c.trim() === "") {
-      throw new Error("empty completion");
-    }
-    content = c;
-  } catch {
+    const generated = await generateCopyWithFallback(apiKey, [
+      { role: "system", content: BRAND_VOICE.systemPrompt },
+      { role: "user", content: userPrompt },
+    ]);
+    content = generated.content;
+    modelUsed = generated.modelUsed;
+  } catch (err) {
+    // Every model attempt failed — return a human message the frontend already
+    // knows how to display, never the raw provider string.
     return NextResponse.json(
-      { error: "Groq API returned an unexpected response shape." },
-      { status: 502 },
+      {
+        error:
+          err instanceof CopyGenerationError
+            ? err.message
+            : "Copy generation failed. Please try again.",
+      },
+      { status: 503 },
     );
   }
 
@@ -459,12 +516,19 @@ export async function POST(request: Request) {
 
   // Stamp the forced style so the frontend can surface it ("Style: …").
   result.visual_style = style.name;
+  // Tell the frontend which model produced this so it can show a subtle note.
+  result.model_used = modelUsed;
 
   // Cheap validator (Task 2): if the scene fell back to a banned literal
   // location, make exactly one focused retry. If it still fails, proceed anyway.
   if (sceneHasBannedWords(result.scene_for_image_gen)) {
+    const sceneModel =
+      modelUsed === "fallback" || process.env.GROQ_USE_FALLBACK === "1"
+        ? FALLBACK_MODEL
+        : PRIMARY_MODEL;
     const retryScene = await regenerateScene(
       apiKey,
+      sceneModel,
       products[0].name,
       vibe,
       style,

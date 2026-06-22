@@ -35,15 +35,16 @@ function ProductCard({
       transition={{ duration: 0.2, ease: "easeOut" }}
       className="group relative flex flex-col text-left focus:outline-none"
       style={{
-        backgroundColor: "var(--bg-surface)",
+        backgroundColor: isSelected ? "rgba(255,92,0,0.04)" : "var(--bg-surface)",
         border: `2px solid ${isSelected ? "var(--accent)" : "var(--border)"}`,
-        transition: "border-color 0.2s ease",
+        transition: "box-shadow 0.2s ease, border-color 0.2s ease",
       }}
       onMouseEnter={(e) => {
-        if (!isSelected) e.currentTarget.style.borderTopColor = "var(--accent)";
+        if (!isSelected)
+          e.currentTarget.style.boxShadow = "0 4px 16px rgba(0,0,0,0.08)";
       }}
       onMouseLeave={(e) => {
-        if (!isSelected) e.currentTarget.style.borderTopColor = "var(--border)";
+        if (!isSelected) e.currentTarget.style.boxShadow = "none";
       }}
     >
       {/* selected checkmark badge */}

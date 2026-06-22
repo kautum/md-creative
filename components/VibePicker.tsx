@@ -35,7 +35,7 @@ function Pill({
       whileTap={{ scale: 0.97 }}
       className="rounded-sm px-4 py-2 text-xs font-medium uppercase tracking-[0.15em] focus:outline-none"
       style={{
-        backgroundColor: active ? "var(--accent)" : "transparent",
+        backgroundColor: active ? "rgba(255,92,0,0.08)" : "var(--bg-surface)",
         color: "var(--text-primary)",
         border: `1px solid ${active ? "var(--accent)" : "var(--border)"}`,
         transition:

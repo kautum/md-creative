@@ -3,7 +3,11 @@
 import { useState } from "react";
 import { Download } from "lucide-react";
 import type { GeneratedCopy, Product } from "@/lib/products";
-import { FLATLAY_LAYOUTS } from "@/components/ProductOverlays";
+import {
+  getCompositeLayout,
+  BASE_MAX_HEIGHT,
+} from "@/components/ProductOverlays";
+import { getProductCutout } from "@/lib/cutout";
 
 interface DownloadBarProps {
   products: Product[];
@@ -101,32 +105,39 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
-/** Draw one product onto the canvas via multiply at a flat-lay position. */
-function drawProductMultiply(
+/** Draw a soft elliptical contact shadow at a product's base on the canvas. */
+function drawContactShadow(
   ctx: CanvasRenderingContext2D,
-  img: HTMLImageElement,
-  W: number,
-  H: number,
-  pos: { left: number; top: number; width: number; rotate: number },
+  cx: number,
+  baseY: number,
+  drawW: number,
+  drawH: number,
+  footprint: number,
+  opacity: number,
 ) {
-  let pw = (pos.width / 100) * W;
-  let ph = (pw * img.naturalHeight) / img.naturalWidth;
-  const maxH = 0.72 * H;
-  if (ph > maxH) {
-    ph = maxH;
-    pw = (ph * img.naturalWidth) / img.naturalHeight;
-  }
+  const rx = Math.max(drawW * footprint * 0.48, drawW * 0.1);
+  const ry = drawH * 0.065;
   ctx.save();
-  ctx.translate((pos.left / 100) * W, (pos.top / 100) * H);
-  ctx.rotate((pos.rotate * Math.PI) / 180);
-  ctx.drawImage(img, -pw / 2, -ph / 2, pw, ph);
+  ctx.translate(cx, baseY + ry * 0.5);
+  ctx.scale(1, ry / rx); // squash the circular gradient into an ellipse
+  const g = ctx.createRadialGradient(0, 0, 0, 0, 0, rx);
+  g.addColorStop(0, `rgba(0,0,0,${opacity})`);
+  g.addColorStop(0.7, "rgba(0,0,0,0)");
+  g.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.arc(0, 0, rx, 0, Math.PI * 2);
+  ctx.fill();
   ctx.restore();
 }
 
 /**
- * Redraw the AD CREATIVE composite onto an offscreen canvas, matching whatever
- * tier was shown on screen: hero overlay (1), flat-lay (2-4), or pure scene
- * (5+). On CORS taint / load failure, fall back to opening the raw scene URL.
+ * Redraw the AD CREATIVE composite onto an offscreen canvas, matching what was
+ * shown on screen: the SAME cutout system, real-scale layout and contact
+ * shadows (lib/cutout + ProductOverlays.getCompositeLayout), not the old
+ * multiply blend. Tiers: hero (1), flat-lay (2-4), pure scene (5+). Cutouts are
+ * same-origin data URLs so they never taint the canvas; only the cross-origin
+ * scene can — on taint / load failure we fall back to opening the raw scene.
  */
 async function downloadComposite(
   products: Product[],
@@ -147,33 +158,54 @@ async function downloadComposite(
     const sh = scene.naturalHeight * scale;
     ctx.drawImage(scene, (W - sw) / 2, (H - sh) / 2, sw, sh);
 
-    const n = products.length;
-    if (n >= 1 && n <= 4) {
-      ctx.globalCompositeOperation = "multiply";
-      if (n === 1) {
-        const prod = await loadImage(products[0].imageUrl);
-        const maxW = W * 0.66;
-        const maxH = H * 0.6;
-        const ps = Math.min(
-          maxW / prod.naturalWidth,
-          maxH / prod.naturalHeight,
+    // Tier 1-4: composite products. 5+: scene only (matches Tier 3 on screen).
+    const slots = getCompositeLayout(products); // [] for 0 or 5+
+    // Resolve cutouts up front, in slot order (back → front), so the canvas
+    // paint order matches the on-screen DOM order.
+    const cutouts = await Promise.all(
+      slots.map((s) => getProductCutout(s.product.imageUrl)),
+    );
+
+    for (let i = 0; i < slots.length; i++) {
+      const slot = slots[i];
+      const cut = cutouts[i];
+      const cx = (slot.left / 100) * W;
+      const cy = (slot.top / 100) * H;
+      const drawH = (slot.heightPct / 100) * H;
+
+      if (cut) {
+        const img = await loadImage(cut.url);
+        const drawW = drawH * (img.naturalWidth / img.naturalHeight);
+        const prominence = Math.min(1, slot.heightPct / BASE_MAX_HEIGHT);
+        const opacity = 0.22 + 0.24 * prominence;
+        // Contact shadow first, then the product on top.
+        drawContactShadow(
+          ctx,
+          cx,
+          cy + drawH / 2,
+          drawW,
+          drawH,
+          cut.footprint,
+          opacity,
         );
-        const pw = prod.naturalWidth * ps;
-        const ph = prod.naturalHeight * ps;
-        ctx.drawImage(prod, (W - pw) / 2, (H - ph) / 2, pw, ph);
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.rotate((slot.rotate * Math.PI) / 180);
+        ctx.drawImage(img, -drawW / 2, -drawH / 2, drawW, drawH);
+        ctx.restore();
       } else {
-        const layout = FLATLAY_LAYOUTS[n] ?? [];
-        // Load all first so paint order matches the layout (back → front).
-        const imgs = await Promise.all(
-          products.map((p) => loadImage(p.imageUrl)),
-        );
-        imgs.forEach((img, i) => {
-          if (layout[i]) drawProductMultiply(ctx, img, W, H, layout[i]);
-        });
+        // Cutout failed — fall back to the raw image via multiply (matches the
+        // on-screen fallback) so the product still appears.
+        const img = await loadImage(slot.product.imageUrl);
+        const drawW = drawH * (img.naturalWidth / img.naturalHeight);
+        ctx.save();
+        ctx.globalCompositeOperation = "multiply";
+        ctx.translate(cx, cy);
+        ctx.rotate((slot.rotate * Math.PI) / 180);
+        ctx.drawImage(img, -drawW / 2, -drawH / 2, drawW, drawH);
+        ctx.restore();
       }
-      ctx.globalCompositeOperation = "source-over";
     }
-    // n >= 5: scene only, no overlay (matches Tier 3 on screen).
 
     const blob = await new Promise<Blob | null>((resolve) =>
       canvas.toBlob((b) => resolve(b), "image/png"),
@@ -233,7 +265,7 @@ export default function DownloadBar({
               Campaign Pack
             </span>
             <span
-              style={{ color: "rgba(255,255,255,0.4)", fontSize: "0.8rem" }}
+              style={{ color: "var(--text-muted)", fontSize: "0.8rem" }}
             >
               All copy + ad creative, ready to use.
             </span>
