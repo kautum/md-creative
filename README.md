@@ -23,7 +23,7 @@ for the Junior AI Developer role at [mdlondon](https://mdlondon.com)*
 
 ## Why this, not a chatbot
 
-mdlondon already has an AI chatbot — [The Knowing](https://mdlondon.com). Building
+mdlondon already has an AI chatbot — [The Knowing](https://mdlondon.com/pages/theknowing). Building
 another one would have been a worse clone of something that already exists.
 
 The job description asked for something specific: *"AI woven into paid content —
