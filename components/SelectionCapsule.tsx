@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { campaignLabel, type Product } from "@/lib/products";
+import { campaignLabel, matchRoutine, type Product } from "@/lib/products";
+import { getCutout } from "@/lib/cutout";
 import ProductImage from "@/components/ProductImage";
 
 const MAX_THUMBS = 4;
@@ -38,6 +39,7 @@ export default function SelectionCapsule({
   }, []);
 
   const total = products.reduce((sum, p) => sum + p.price, 0);
+  const routine = matchRoutine(products.map((p) => p.id));
   // Once a campaign is on screen it has its own controls; the capsule's job
   // (getting you from a selection to a campaign) is done.
   const visible = products.length > 0 && !briefInView && !hasCampaign;
@@ -56,8 +58,8 @@ export default function SelectionCapsule({
             className="flex max-w-full items-center gap-4 py-2 pl-3 pr-2"
             style={{
               borderRadius: "var(--radius-pill)",
-              border: "1px solid var(--cork)",
-              background: "rgba(16,9,4,0.78)",
+              border: "1px solid var(--line)",
+              background: "rgba(21,28,30,0.78)",
               backdropFilter: "blur(16px) saturate(140%)",
             }}
           >
@@ -66,7 +68,7 @@ export default function SelectionCapsule({
                 <span
                   key={p.id}
                   className="flex h-9 w-9 items-center justify-center rounded-full p-1"
-                  style={{ background: "var(--bark)", border: "1px solid var(--cork)" }}
+                  style={{ background: "var(--raised)", border: `1px solid ${getCutout(p.id).tone}` }}
                 >
                   <ProductImage product={p} className="h-full w-full" />
                 </span>
@@ -74,7 +76,7 @@ export default function SelectionCapsule({
               {products.length > MAX_THUMBS && (
                 <span
                   className="label-sm flex h-9 w-9 items-center justify-center rounded-full"
-                  style={{ background: "var(--bark)", border: "1px solid var(--cork)" }}
+                  style={{ background: "var(--raised)", border: "1px solid var(--line)" }}
                 >
                   +{products.length - MAX_THUMBS}
                 </span>
@@ -82,8 +84,10 @@ export default function SelectionCapsule({
             </div>
             <div className="hidden min-w-0 flex-col sm:flex">
               <span className="label truncate">{campaignLabel(products)}</span>
-              <span className="label-sm" style={{ color: "var(--cream-50)" }}>
-                £{total} · {products.length} {products.length === 1 ? "product" : "products"}
+              <span className="label-sm" style={{ color: "var(--fg-50)" }}>
+                {routine
+                  ? `£${routine.price} bundle · save £${routine.wasPrice - routine.price}`
+                  : `£${total} · ${products.length} ${products.length === 1 ? "product" : "products"}`}
               </span>
             </div>
             {hasVibe ? (

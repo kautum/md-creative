@@ -45,7 +45,7 @@ function SceneComposite({
   return (
     <div
       className="absolute inset-0 overflow-hidden"
-      style={{ isolation: "isolate", backgroundColor: "var(--bark)" }}
+      style={{ isolation: "isolate", backgroundColor: "var(--raised)" }}
     >
       {imageUrl ? (
         <>
@@ -59,7 +59,7 @@ function SceneComposite({
       ) : (
         <div
           className="absolute inset-0 animate-pulse"
-          style={{ backgroundColor: "var(--bark)" }}
+          style={{ backgroundColor: "var(--raised)" }}
         />
       )}
     </div>
@@ -74,8 +74,8 @@ function Avatar({ size }: { size: number }) {
       style={{
         width: size,
         height: size,
-        backgroundColor: "var(--cream)",
-        color: "var(--walnut)",
+        backgroundColor: "var(--fg)",
+        color: "var(--bg)",
         fontSize: size * 0.42,
         letterSpacing: "0.02em",
       }}
@@ -104,7 +104,7 @@ function InstagramPhone({
       style={{
         aspectRatio: "9 / 19",
         borderRadius: "2.8rem",
-        border: "8px solid var(--cork)",
+        border: "8px solid var(--line)",
         backgroundColor: "#f0f0f0",
               }}
     >

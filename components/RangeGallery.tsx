@@ -2,7 +2,8 @@
 
 import { useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import { motion, useScroll, useSpring, useTransform } from "framer-motion";
-import { PRODUCTS, type Product } from "@/lib/products";
+import { ROUTINES, matchRoutine, type Product } from "@/lib/products";
+import { getCutout } from "@/lib/cutout";
 import ProductImage from "@/components/ProductImage";
 
 const DESKTOP = "(min-width: 1024px)";
@@ -19,8 +20,28 @@ function useMedia(query: string) {
   );
 }
 
-const tools = PRODUCTS.filter((p) => p.category === "tool");
-const numbers = PRODUCTS.filter((p) => p.category === "number");
+const WORDS = ["Zero", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten", "Eleven", "Twelve"];
+
+/** "£15 each" or "£13 to £199", from the prices actually shown. */
+function priceSpan(items: Product[]) {
+  const prices = items.map((p) => p.price);
+  const lo = Math.min(...prices);
+  const hi = Math.max(...prices);
+  return lo === hi ? `£${lo} each` : `£${lo} to £${hi}`;
+}
+
+function Price({ product }: { product: Product }) {
+  return (
+    <span className="label flex items-baseline gap-2">
+      {product.wasPrice && (
+        <s style={{ color: "var(--fg-50)" }} aria-label={`was £${product.wasPrice}`}>
+          £{product.wasPrice}
+        </s>
+      )}
+      £{product.price}
+    </span>
+  );
+}
 
 function Card({
   product,
@@ -33,33 +54,37 @@ function Card({
   selected: boolean;
   onToggle: (p: Product) => void;
 }) {
+  const tone = getCutout(product.id).tone;
   return (
     <button
       type="button"
       aria-pressed={selected}
       onClick={() => onToggle(product)}
-      className="group relative flex h-[min(64vh,560px)] w-[78vw] shrink-0 snap-center flex-col justify-between overflow-hidden p-6 text-left transition-colors duration-300 sm:w-[46vw] lg:w-[min(27vw,400px)]"
+      className="group relative flex h-[min(64vh,560px)] lg:h-[min(56vh,540px)] w-[78vw] shrink-0 snap-center flex-col justify-between overflow-hidden p-6 text-left transition-colors duration-300 sm:w-[46vw] lg:w-[min(27vw,400px)]"
       style={{
         borderRadius: "var(--radius-card)",
-        border: `1px solid ${selected ? "var(--cream)" : "var(--cork)"}`,
-        background: selected ? "var(--bark)" : "rgba(56,36,22,0.18)",
+        border: `1px solid ${selected ? tone : "var(--line)"}`,
+        background: selected
+          ? `color-mix(in srgb, ${tone} 16%, var(--bg))`
+          : "color-mix(in srgb, var(--raised) 55%, transparent)",
       }}
     >
       <div className="flex items-baseline justify-between">
-        <span className="label" style={{ color: "var(--cream-50)" }}>
+        <span className="label" style={{ color: "var(--fg-50)" }}>
           {String(index + 1).padStart(2, "0")}
         </span>
-        <span className="label" style={{ color: selected ? "var(--cream)" : "var(--cream-50)" }}>
+        <span className="label" style={{ color: selected ? "var(--fg)" : "var(--fg-50)" }}>
           {selected ? "Selected ✓" : "Select +"}
         </span>
       </div>
       <div className="relative my-4 flex-1">
+        {/* Each product glows in its own colour. */}
         <div
           aria-hidden
-          className="absolute inset-[8%] rounded-full opacity-50 transition-opacity duration-500 group-hover:opacity-100"
+          className="absolute inset-[6%] rounded-full transition-opacity duration-500 group-hover:opacity-100"
           style={{
-            background:
-              "radial-gradient(circle at 60% 40%, rgba(255,237,215,0.12), rgba(255,237,215,0) 65%)",
+            opacity: selected ? 0.9 : 0.45,
+            background: `radial-gradient(circle at 55% 45%, color-mix(in srgb, ${tone} 38%, transparent), transparent 68%)`,
           }}
         />
         <ProductImage
@@ -72,9 +97,9 @@ function Card({
           <span className="heading" style={{ fontSize: "clamp(26px, 2.4vw, 34px)" }}>
             {product.name}
           </span>
-          <span className="label">£{product.price}</span>
+          <Price product={product} />
         </div>
-        <p className="body-sm line-clamp-2" style={{ color: "var(--cream-70)", fontSize: 14 }}>
+        <p className="body-sm line-clamp-2" style={{ color: "var(--fg-70)", fontSize: 14 }}>
           {product.tagline}
         </p>
       </div>
@@ -84,8 +109,8 @@ function Card({
 
 function Divider({ title, note }: { title: string; note: string }) {
   return (
-    <div className="flex h-[min(64vh,560px)] w-[60vw] shrink-0 snap-center flex-col justify-end gap-4 px-2 sm:w-[34vw] lg:w-[min(20vw,300px)]">
-      <span className="label" style={{ color: "var(--cream-50)" }}>
+    <div className="flex h-[min(64vh,560px)] lg:h-[min(56vh,540px)] w-[60vw] shrink-0 snap-center flex-col justify-end gap-4 px-2 sm:w-[34vw] lg:w-[min(20vw,300px)]">
+      <span className="label" style={{ color: "var(--fg-50)" }}>
         {note}
       </span>
       <span className="heading">{title}</span>
@@ -94,49 +119,93 @@ function Divider({ title, note }: { title: string; note: string }) {
 }
 
 function Track({
+  products,
   selectedIds,
   onToggle,
 }: {
+  products: Product[];
   selectedIds: string[];
   onToggle: (p: Product) => void;
 }) {
+  const tools = products.filter((p) => p.category === "tool");
+  const numbers = products.filter((p) => p.category === "number");
   return (
     <>
-      <Divider title="The tools." note="Six — £13 to £195" />
+      <Divider title="The tools." note={`${WORDS[tools.length]} — ${priceSpan(tools)}`} />
       {tools.map((p, i) => (
         <Card key={p.id} product={p} index={i} selected={selectedIds.includes(p.id)} onToggle={onToggle} />
       ))}
-      <Divider title="The numbers." note="Six — £15 each" />
+      <Divider title="The numbers." note={`${WORDS[numbers.length]} — ${priceSpan(numbers)}`} />
       {numbers.map((p, i) => (
-        <Card key={p.id} product={p} index={i + tools.length} selected={selectedIds.includes(p.id)} onToggle={onToggle} />
+        <Card
+          key={p.id}
+          product={p}
+          index={i + tools.length}
+          selected={selectedIds.includes(p.id)}
+          onToggle={onToggle}
+        />
       ))}
     </>
   );
 }
 
+/** mdlondon's own bundles, one tap each. */
+function Routines({
+  selectedIds,
+  onPick,
+}: {
+  selectedIds: string[];
+  onPick: (ids: string[]) => void;
+}) {
+  const active = matchRoutine(selectedIds);
+  return (
+    <div className="flex flex-wrap items-center gap-[10px] px-4 sm:px-6 lg:pr-12">
+      <span className="label-sm mr-2" style={{ color: "var(--fg-50)" }}>
+        mdlondon routines
+      </span>
+      {ROUTINES.map((r) => (
+        <button
+          key={r.id}
+          type="button"
+          className="chip"
+          aria-pressed={active?.id === r.id}
+          title={`${r.productIds.length} products · £${r.price} (save £${r.wasPrice - r.price})`}
+          onClick={() => onPick(active?.id === r.id ? [] : r.productIds)}
+        >
+          {r.name} · £{r.price}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function Header({
   count,
+  total,
   allSelected,
   onSelectAll,
+  priceNote,
   progress,
 }: {
   count: number;
+  total: number;
   allSelected: boolean;
   onSelectAll: () => void;
+  priceNote: string;
   progress?: React.ReactNode;
 }) {
   return (
     <div className="flex flex-col items-start gap-4 px-4 sm:flex-row sm:items-end sm:justify-between sm:px-6 lg:pr-12">
       <div className="flex flex-col gap-4">
-        <span className="label" style={{ color: "var(--cream-50)" }}>
-          01 — The range
+        <span className="label" style={{ color: "var(--fg-50)" }}>
+          01 — The range · <span title="Prices come from mdlondon.com">{priceNote}</span>
         </span>
         <h2 className="heading">Pick the object.</h2>
       </div>
       <div className="flex items-center gap-6">
         {progress}
-        <span className="label" style={{ color: "var(--cream-50)" }}>
-          {count} / {PRODUCTS.length} selected
+        <span className="label" style={{ color: "var(--fg-50)" }}>
+          {count} / {total} selected
         </span>
         <button type="button" onClick={onSelectAll} className="link">
           {allSelected ? "Clear" : "Select all"}
@@ -152,13 +221,19 @@ function Header({
  * sideways; on touch it's a native swipe carousel with snap points.
  */
 export default function RangeGallery({
+  products,
   selectedIds,
+  priceNote,
   onToggle,
   onSelectAll,
+  onPickRoutine,
 }: {
+  products: Product[];
   selectedIds: string[];
+  priceNote: string;
   onToggle: (p: Product) => void;
   onSelectAll: () => void;
+  onPickRoutine: (ids: string[]) => void;
 }) {
   const isDesktop = useMedia(DESKTOP);
   const sectionRef = useRef<HTMLElement>(null);
@@ -186,26 +261,31 @@ export default function RangeGallery({
   const bar = useTransform(smooth, [0, 1], [0, 1]);
 
   const header = (
-    <Header
-      count={selectedIds.length}
-      allSelected={selectedIds.length === PRODUCTS.length}
-      onSelectAll={onSelectAll}
-      progress={
-        isDesktop ? (
-          <span className="relative block h-px w-32 overflow-hidden" style={{ background: "var(--cork)" }}>
-            <motion.span className="absolute inset-0 origin-left" style={{ scaleX: bar, background: "var(--cream)" }} />
-          </span>
-        ) : null
-      }
-    />
+    <>
+      <Header
+        count={selectedIds.length}
+        total={products.length}
+        allSelected={selectedIds.length === products.length}
+        onSelectAll={onSelectAll}
+        priceNote={priceNote}
+        progress={
+          isDesktop ? (
+            <span className="relative block h-px w-32 overflow-hidden" style={{ background: "var(--line)" }}>
+              <motion.span className="absolute inset-0 origin-left" style={{ scaleX: bar, background: "var(--tone)" }} />
+            </span>
+          ) : null
+        }
+      />
+      <Routines selectedIds={selectedIds} onPick={onPickRoutine} />
+    </>
   );
 
   if (!isDesktop) {
     return (
-      <section id="range" ref={sectionRef} className="rule-dashed flex flex-col gap-10 py-[68px]">
+      <section id="range" ref={sectionRef} className="rule-dashed flex flex-col gap-8 py-[68px]">
         {header}
         <div className="flex snap-x snap-mandatory gap-[18px] overflow-x-auto px-4 pb-4 sm:px-6 [scrollbar-width:none]">
-          <Track selectedIds={selectedIds} onToggle={onToggle} />
+          <Track products={products} selectedIds={selectedIds} onToggle={onToggle} />
         </div>
       </section>
     );
@@ -218,10 +298,10 @@ export default function RangeGallery({
       className="rule-dashed relative"
       style={{ height: `calc(100svh + ${distance}px)` }}
     >
-      <div className="sticky top-0 flex h-[100svh] flex-col justify-center gap-10 overflow-hidden pt-16">
+      <div className="sticky top-0 flex h-[100svh] flex-col justify-center gap-6 overflow-hidden pt-16">
         {header}
-        <motion.div ref={trackRef} style={{ x }} className="flex w-max gap-[18px] px-6">
-          <Track selectedIds={selectedIds} onToggle={onToggle} />
+        <motion.div ref={trackRef} style={{ x }} className="flex w-max gap-[18px] px-6 pt-2">
+          <Track products={products} selectedIds={selectedIds} onToggle={onToggle} />
         </motion.div>
       </div>
     </section>

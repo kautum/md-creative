@@ -21,6 +21,45 @@ for the Junior AI Developer role at [mdlondon](https://mdlondon.com)*
 
 ---
 
+## What's new in 3.1
+
+The final 5%: everything in 3.1 came from researching mdlondon itself. The sources
+were the live store's catalogue (`products.json`), its theme colours and its own
+bundles.
+
+**The real catalogue.** The Numbers 7–12 (Humidity Shield, Dry Heat Protection,
+More Curls Gel, Pre & Post Oil, Dry Cleaning, Salt Mousse) launched after 1.0 and
+were missing. Five of the six tool prices had drifted, and STRAIT and PHAT are on
+sale. Prices are now read **live from mdlondon.com** and cached for an hour. If the
+store can't be reached, the page says "Prices as of 9 Oct 2026" instead of
+presenting stale prices as current. `npm test` checks the catalogue against the
+store's own bundle maths: every bundle's "was" price must equal the sum of its
+products.
+
+**mdlondon's own routines.** One tap selects a real bundle, such as Volume + Body,
+Defined Curls or ALL 12. The capsule and brief quote the bundle price and saving,
+and the copy's CTA names it ("Shop the Defined Curls bundle — £50").
+
+**A palette that belongs to the brand.** Ink `#151C1E` (mdlondon's primary) is the
+canvas, slate `#415257` the structure, and coral `#F35046` the brand mark, the
+full stop in **MD CREATIVE.** Each product's own body colour, sampled from its
+cutout, becomes the page's live `--tone`: select THE 5 and the light turns burnt
+orange, select CURL and it turns Berry.
+
+**Particles with a point of view.** Tools assemble from **hair strands**, combed
+by a drifting airflow. The Numbers condense from **mist**, like a spray. In the
+hero's middle chapter the product dissolves into a cloud, and **your cursor is
+the hairdryer**: move through it and the strands part.
+
+**The Knowing.** Every Numbers bottle carries a "Scan to Know" QR code that opens
+Michael Douglas's AI on WhatsApp. The copy model now knows this and can use it,
+once, as a hook.
+
+**Fixes:** a selected chip went white-on-white on hover; the brand check counted
+"—" as a word; BLOW and WAVE linked to redirecting product URLs. Share links now
+unfurl with a real preview image, and the default Next favicon is replaced by an
+`md.` mark.
+
 ## What's new in 3.0
 
 ![The scroll story](public/screenshots/story.png)
@@ -132,13 +171,14 @@ For any single product or product bundle, one generation produces:
 
 ## The product range
 
-All 12 mdlondon products are built in with verified live CDN image URLs, real prices,
+All 18 mdlondon products are built in with verified live CDN image URLs, live prices,
 and taglines pulled from the actual product catalogue.
 
-**Tools:** BLOW (£195), WAVE (£125), STRAIT (£109), PHAT (£129), CURL (£99), BRUSH (£13)
+**Tools:** BLOW (£199), WAVE (£129), STRAIT (£80, was £119), PHAT (£85, was £129), CURL (£129), BRUSH (£13). Prices as of 9 Oct 2026; the app reads them live.
 
-**The Numbers:** THE 1–6 (£15 each) — Hair Primer, Blow-Out Spray, Mousse, Hairspray,
-Texture, Settling Finish
+**The Numbers:** THE 1–12 (£15 each) — Hair Primer, Blow-Out Spray, Mousse, Hairspray,
+Texture, Settling Finish, Humidity Shield, Dry Heat Protection, More Curls Gel,
+Pre & Post Oil, Dry Cleaning, Salt Mousse
 
 ---
 

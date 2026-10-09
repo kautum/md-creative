@@ -1,21 +1,35 @@
 @import "tailwindcss";
 
-/* MD Creative 2.0 — "darkroom product editorial" (designs/DESIGN (3).md).
-   A lone object in warm darkness; cream type is the only decoration.
-   Two surfaces (walnut → bark), hairline cork borders, no shadows. Ember is
-   editorial credit only — never a button. */
-:root {
-  --cream: #ffedd7;
-  --walnut: #100904;
-  --bark: #382416;
-  --cork: #40372e;
-  --driftwood: #6c5f51;
-  --ember: #dc5000;
+/* MD Creative 3.1 — "Salon Ink". The palette is mdlondon's own, read from the
+   live store's theme and its products, not invented:
+     ink   #151C1E  mdlondon.com's primary (text, buttons) → our canvas
+     slate #415257  its secondary dark                      → structure
+     coral #F35046  its accent                              → the brand mark only
+   and the tools' four colourways (Casal Blue, Olive Green, Berry, Blush).
+   Each product's own body colour becomes --tone: the page's light shifts to
+   whichever product leads. Layout and type rules still follow
+   designs/DESIGN (3).md — editorial, flat, no shadows. */
 
-  /* Cream at reduced strength for secondary text — still warm, never grey. */
-  --cream-70: rgba(255, 237, 215, 0.7);
-  --cream-50: rgba(255, 237, 215, 0.5);
-  --cream-08: rgba(255, 237, 215, 0.08);
+/* Registered so the tone can glide between products instead of snapping. */
+@property --tone {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #608a9e;
+}
+
+:root {
+  --bg: #151c1e;
+  --raised: #1f292c;
+  --line: #2c393d;
+  --slate: #415257;
+  --fg: #f4f2ee;
+  --accent: #f35046;
+  --tone: #608a9e; /* Casal Blue until a product leads */
+
+  /* Porcelain at reduced strength — secondary text, hairlines on images. */
+  --fg-70: rgba(244, 242, 238, 0.7);
+  --fg-50: rgba(244, 242, 238, 0.52);
+  --fg-08: rgba(244, 242, 238, 0.08);
 
   --radius-card: 12px;
   --radius-ghost: 22.5px;
@@ -23,36 +37,38 @@
 }
 
 @theme inline {
-  --color-cream: var(--cream);
-  --color-walnut: var(--walnut);
-  --color-bark: var(--bark);
-  --color-cork: var(--cork);
-  --color-driftwood: var(--driftwood);
-  --color-ember: var(--ember);
+  --color-fg: var(--fg);
+  --color-bg: var(--bg);
+  --color-raised: var(--raised);
+  --color-line: var(--line);
+  --color-slate: var(--slate);
+  --color-accent: var(--accent);
+  --color-tone: var(--tone);
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
 }
 
 html {
+  transition: --tone 0.9s ease;
   scroll-behavior: smooth;
   overflow-x: clip;
   scroll-padding-top: 72px;
 }
 
 body {
-  background-color: var(--walnut);
-  color: var(--cream);
+  background-color: var(--bg);
+  color: var(--fg);
   font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   font-feature-settings: "ss01" on;
   font-weight: 500;
 }
 
 ::selection {
-  background: var(--cream);
-  color: var(--walnut);
+  background: var(--fg);
+  color: var(--bg);
 }
 
 :focus-visible {
-  outline: 1px dashed var(--cream);
+  outline: 1px dashed var(--fg);
   outline-offset: 3px;
 }
 
@@ -107,22 +123,22 @@ body {
     line-height: 1.2;
     font-weight: 500;
     text-transform: uppercase;
-    color: var(--cream-50);
+    color: var(--fg-50);
   }
 
   .credit {
-    color: var(--ember);
+    color: var(--accent);
   }
 
   /* ── Structure ───────────────────────────────────────────────────────── */
 
   .rule-dashed {
     border: 0;
-    border-top: 1px dashed var(--cork);
+    border-top: 1px dashed var(--line);
   }
 
   .card {
-    border: 1px solid var(--cork);
+    border: 1px solid var(--line);
     border-radius: var(--radius-card);
     background: transparent;
   }
@@ -137,16 +153,19 @@ body {
     gap: 10px;
     padding: 14px 24px;
     border-radius: var(--radius-pill);
-    background: var(--bark);
-    color: var(--cream);
-    border: 1px solid var(--bark);
+    /* mdlondon's primary button is solid ink on white; on our ink canvas the
+       faithful inverse is solid porcelain on ink. */
+    background: var(--fg);
+    color: var(--bg);
+    border: 1px solid var(--fg);
     font-size: 14px;
     font-weight: 500;
     text-transform: uppercase;
-    transition: border-color 0.2s ease;
+    transition: background-color 0.25s ease, border-color 0.25s ease;
   }
   .btn-filled:hover:not(:disabled) {
-    border-color: var(--cream);
+    background: color-mix(in srgb, var(--fg) 78%, var(--tone));
+    border-color: color-mix(in srgb, var(--fg) 78%, var(--tone));
   }
   .btn-filled:disabled {
     opacity: 0.45;
@@ -160,9 +179,9 @@ body {
     gap: 8px;
     padding: 7.5px 16px;
     border-radius: var(--radius-ghost);
-    border: 1px solid var(--cream);
+    border: 1px solid var(--fg);
     background: transparent;
-    color: var(--cream);
+    color: var(--fg);
     font-size: 12px;
     font-weight: 500;
     text-transform: uppercase;
@@ -172,7 +191,7 @@ body {
       border-color 0.2s ease;
   }
   .btn-ghost:hover:not(:disabled) {
-    background: var(--cream-08);
+    background: var(--fg-08);
   }
   .btn-ghost:disabled {
     opacity: 0.4;
@@ -183,8 +202,8 @@ body {
   .chip {
     padding: 7.5px 16px;
     border-radius: var(--radius-ghost);
-    border: 1px solid var(--cork);
-    color: var(--cream-70);
+    border: 1px solid var(--line);
+    color: var(--fg-70);
     font-size: 12px;
     font-weight: 500;
     text-transform: uppercase;
@@ -194,13 +213,16 @@ body {
       border-color 0.2s ease;
   }
   .chip:hover:not(:disabled) {
-    border-color: var(--cream);
-    color: var(--cream);
+    border-color: var(--fg);
+    color: var(--fg);
   }
-  .chip[aria-pressed="true"] {
-    background: var(--cream);
-    border-color: var(--cream);
-    color: var(--walnut);
+  /* :hover included so a hovered selection keeps its ink text — the hover
+     rule above is more specific and used to paint white on white. */
+  .chip[aria-pressed="true"],
+  .chip[aria-pressed="true"]:hover:not(:disabled) {
+    background: var(--fg);
+    border-color: var(--fg);
+    color: var(--bg);
   }
   .chip:disabled {
     opacity: 0.35;
@@ -211,7 +233,7 @@ body {
     font-size: 12px;
     font-weight: 500;
     text-transform: uppercase;
-    color: var(--cream);
+    color: var(--fg);
     text-decoration: underline;
     text-underline-offset: 4px;
     text-decoration-thickness: 1px;
@@ -225,15 +247,15 @@ body {
     width: 100%;
     padding: 10px 2px;
     border: 0;
-    border-bottom: 1px solid var(--cream);
+    border-bottom: 1px solid var(--fg);
     border-radius: 0;
     background: transparent;
-    color: var(--cream);
+    color: var(--fg);
     font-size: 15px;
     font-weight: 400;
   }
   .input-line::placeholder {
-    color: var(--cream-50);
+    color: var(--fg-50);
   }
   .input-line:focus {
     outline: none;

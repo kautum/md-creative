@@ -28,7 +28,7 @@ export default function ShareCard({ campaign }: { campaign: SharedCampaign }) {
     <div className="card flex flex-col gap-6 p-6">
       <div className="flex flex-col gap-3">
         <span className="label">Share the campaign</span>
-        <p className="body-sm" style={{ color: "var(--cream-70)" }}>
+        <p className="body-sm" style={{ color: "var(--fg-70)" }}>
           One link carries everything — products, brief, copy and scene. Whoever
           opens it sees this exact campaign.
         </p>

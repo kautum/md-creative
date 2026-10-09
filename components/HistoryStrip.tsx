@@ -63,14 +63,14 @@ export default function HistoryStrip({
                   </span>
                   <span
                     className="body-sm truncate"
-                    style={{ color: "var(--cream-70)", fontSize: 13 }}
+                    style={{ color: "var(--fg-70)", fontSize: 13 }}
                   >
                     {entry.campaignAngle || entry.caption}
                   </span>
                 </span>
                 <span
                   className="label-sm shrink-0"
-                  style={{ color: "var(--cream-50)" }}
+                  style={{ color: "var(--fg-50)" }}
                 >
                   {relativeTime(entry.timestamp)}
                 </span>
