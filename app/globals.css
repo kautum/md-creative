@@ -34,6 +34,7 @@
 
 html {
   scroll-behavior: smooth;
+  overflow-x: clip;
   scroll-padding-top: 72px;
 }
 
@@ -55,186 +56,189 @@ body {
   outline-offset: 3px;
 }
 
-/* ── Type: two voices only ───────────────────────────────────────────── */
+/* Component classes live in a layer so Tailwind utilities can override them. */
+@layer components {
+  /* ── Type: two voices only ───────────────────────────────────────────── */
 
-/* UPPERCASE 500 — labels, nav, buttons, headings. */
-.label {
-  font-size: 12px;
-  line-height: 1.2;
-  font-weight: 500;
-  text-transform: uppercase;
-}
-.label-sm {
-  font-size: 10px;
-  line-height: 1.2;
-  font-weight: 500;
-  text-transform: uppercase;
-}
-.heading {
-  font-size: clamp(30px, 3.4vw, 41px);
-  line-height: 0.9;
-  font-weight: 500;
-  text-transform: uppercase;
-}
-.display {
-  font-size: clamp(64px, 12vw, 176px);
-  line-height: 0.9;
-  font-weight: 500;
-  text-transform: uppercase;
-}
+  /* UPPERCASE 500 — labels, nav, buttons, headings. */
+  .label {
+    font-size: 12px;
+    line-height: 1.2;
+    font-weight: 500;
+    text-transform: uppercase;
+  }
+  .label-sm {
+    font-size: 10px;
+    line-height: 1.2;
+    font-weight: 500;
+    text-transform: uppercase;
+  }
+  .heading {
+    font-size: clamp(30px, 3.4vw, 41px);
+    line-height: 0.9;
+    font-weight: 500;
+    text-transform: uppercase;
+  }
+  .display {
+    font-size: clamp(64px, 12vw, 176px);
+    line-height: 0.9;
+    font-weight: 500;
+    text-transform: uppercase;
+  }
 
-/* Mixed-case 400 — the only conversational voice. */
-.body-voice {
-  font-size: clamp(20px, 2vw, 29px);
-  line-height: 1.26;
-  font-weight: 400;
-  text-transform: none;
-}
-.body-sm {
-  font-size: 15px;
-  line-height: 1.45;
-  font-weight: 400;
-  text-transform: none;
-}
+  /* Mixed-case 400 — the only conversational voice. */
+  .body-voice {
+    font-size: clamp(20px, 2vw, 29px);
+    line-height: 1.26;
+    font-weight: 400;
+    text-transform: none;
+  }
+  .body-sm {
+    font-size: 15px;
+    line-height: 1.45;
+    font-weight: 400;
+    text-transform: none;
+  }
 
-/* Legal micro-copy — deliberately system type: "this is compliance". */
-.legal {
-  font-family: Arial, system-ui, sans-serif;
-  font-size: 10px;
-  line-height: 1.2;
-  font-weight: 500;
-  text-transform: uppercase;
-  color: var(--cream-50);
-}
+  /* Legal micro-copy — deliberately system type: "this is compliance". */
+  .legal {
+    font-family: Arial, system-ui, sans-serif;
+    font-size: 10px;
+    line-height: 1.2;
+    font-weight: 500;
+    text-transform: uppercase;
+    color: var(--cream-50);
+  }
 
-.credit {
-  color: var(--ember);
-}
+  .credit {
+    color: var(--ember);
+  }
 
-/* ── Structure ───────────────────────────────────────────────────────── */
+  /* ── Structure ───────────────────────────────────────────────────────── */
 
-.rule-dashed {
-  border: 0;
-  border-top: 1px dashed var(--cork);
-}
+  .rule-dashed {
+    border: 0;
+    border-top: 1px dashed var(--cork);
+  }
 
-.card {
-  border: 1px solid var(--cork);
-  border-radius: var(--radius-card);
-  background: transparent;
-}
+  .card {
+    border: 1px solid var(--cork);
+    border-radius: var(--radius-card);
+    background: transparent;
+  }
 
-/* ── Controls ────────────────────────────────────────────────────────── */
+  /* ── Controls ────────────────────────────────────────────────────────── */
 
-/* The one filled CTA per section. */
-.btn-filled {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  padding: 14px 24px;
-  border-radius: var(--radius-pill);
-  background: var(--bark);
-  color: var(--cream);
-  border: 1px solid var(--bark);
-  font-size: 14px;
-  font-weight: 500;
-  text-transform: uppercase;
-  transition: border-color 0.2s ease;
-}
-.btn-filled:hover:not(:disabled) {
-  border-color: var(--cream);
-}
-.btn-filled:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
+  /* The one filled CTA per section. */
+  .btn-filled {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 14px 24px;
+    border-radius: var(--radius-pill);
+    background: var(--bark);
+    color: var(--cream);
+    border: 1px solid var(--bark);
+    font-size: 14px;
+    font-weight: 500;
+    text-transform: uppercase;
+    transition: border-color 0.2s ease;
+  }
+  .btn-filled:hover:not(:disabled) {
+    border-color: var(--cream);
+  }
+  .btn-filled:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
 
-.btn-ghost {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 7.5px 16px;
-  border-radius: var(--radius-ghost);
-  border: 1px solid var(--cream);
-  background: transparent;
-  color: var(--cream);
-  font-size: 12px;
-  font-weight: 500;
-  text-transform: uppercase;
-  transition:
-    background-color 0.2s ease,
-    color 0.2s ease,
-    border-color 0.2s ease;
-}
-.btn-ghost:hover:not(:disabled) {
-  background: var(--cream-08);
-}
-.btn-ghost:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
+  .btn-ghost {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 7.5px 16px;
+    border-radius: var(--radius-ghost);
+    border: 1px solid var(--cream);
+    background: transparent;
+    color: var(--cream);
+    font-size: 12px;
+    font-weight: 500;
+    text-transform: uppercase;
+    transition:
+      background-color 0.2s ease,
+      color 0.2s ease,
+      border-color 0.2s ease;
+  }
+  .btn-ghost:hover:not(:disabled) {
+    background: var(--cream-08);
+  }
+  .btn-ghost:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
 
-/* A choice pill: quiet until chosen, then the inverse. */
-.chip {
-  padding: 7.5px 16px;
-  border-radius: var(--radius-ghost);
-  border: 1px solid var(--cork);
-  color: var(--cream-70);
-  font-size: 12px;
-  font-weight: 500;
-  text-transform: uppercase;
-  transition:
-    background-color 0.2s ease,
-    color 0.2s ease,
-    border-color 0.2s ease;
-}
-.chip:hover:not(:disabled) {
-  border-color: var(--cream);
-  color: var(--cream);
-}
-.chip[aria-pressed="true"] {
-  background: var(--cream);
-  border-color: var(--cream);
-  color: var(--walnut);
-}
-.chip:disabled {
-  opacity: 0.35;
-  cursor: not-allowed;
-}
+  /* A choice pill: quiet until chosen, then the inverse. */
+  .chip {
+    padding: 7.5px 16px;
+    border-radius: var(--radius-ghost);
+    border: 1px solid var(--cork);
+    color: var(--cream-70);
+    font-size: 12px;
+    font-weight: 500;
+    text-transform: uppercase;
+    transition:
+      background-color 0.2s ease,
+      color 0.2s ease,
+      border-color 0.2s ease;
+  }
+  .chip:hover:not(:disabled) {
+    border-color: var(--cream);
+    color: var(--cream);
+  }
+  .chip[aria-pressed="true"] {
+    background: var(--cream);
+    border-color: var(--cream);
+    color: var(--walnut);
+  }
+  .chip:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+  }
 
-.link {
-  font-size: 12px;
-  font-weight: 500;
-  text-transform: uppercase;
-  color: var(--cream);
-  text-decoration: underline;
-  text-underline-offset: 4px;
-  text-decoration-thickness: 1px;
-}
-.link:hover {
-  text-decoration-style: dashed;
-}
+  .link {
+    font-size: 12px;
+    font-weight: 500;
+    text-transform: uppercase;
+    color: var(--cream);
+    text-decoration: underline;
+    text-underline-offset: 4px;
+    text-decoration-thickness: 1px;
+  }
+  .link:hover {
+    text-decoration-style: dashed;
+  }
 
-/* Underline-only input — no boxes, just a line. */
-.input-line {
-  width: 100%;
-  padding: 10px 2px;
-  border: 0;
-  border-bottom: 1px solid var(--cream);
-  border-radius: 0;
-  background: transparent;
-  color: var(--cream);
-  font-size: 15px;
-  font-weight: 400;
-}
-.input-line::placeholder {
-  color: var(--cream-50);
-}
-.input-line:focus {
-  outline: none;
-  border-bottom-style: dashed;
+  /* Underline-only input — no boxes, just a line. */
+  .input-line {
+    width: 100%;
+    padding: 10px 2px;
+    border: 0;
+    border-bottom: 1px solid var(--cream);
+    border-radius: 0;
+    background: transparent;
+    color: var(--cream);
+    font-size: 15px;
+    font-weight: 400;
+  }
+  .input-line::placeholder {
+    color: var(--cream-50);
+  }
+  .input-line:focus {
+    outline: none;
+    border-bottom-style: dashed;
+  }
 }
 
 /* ── Motion ──────────────────────────────────────────────────────────── */
@@ -253,18 +257,17 @@ body {
   animation: fadeInUp 0.4s ease-out both;
 }
 
-/* The hero object drifts slowly, like it's hanging in the dark. */
-@keyframes drift {
-  0%,
-  100% {
-    transform: translateY(0) rotate(-2deg);
+/* The scroll cue: a bead of light running down a hairline. */
+@keyframes scrollCue {
+  0% {
+    transform: translateY(-100%);
   }
-  50% {
-    transform: translateY(-14px) rotate(1deg);
+  100% {
+    transform: translateY(200%);
   }
 }
-.animate-drift {
-  animation: drift 9s ease-in-out infinite;
+.animate-scroll-cue {
+  animation: scrollCue 1.8s cubic-bezier(0.77, 0, 0.18, 1) infinite;
 }
 
 @keyframes breathe {
@@ -284,7 +287,7 @@ body {
   html {
     scroll-behavior: auto;
   }
-  .animate-drift,
+  .animate-scroll-cue,
   .animate-breathe,
   .animate-fade-in-up {
     animation: none;

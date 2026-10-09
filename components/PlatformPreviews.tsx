@@ -1,7 +1,8 @@
 /* eslint-disable @next/next/no-img-element */
 "use client";
 
-import { motion } from "framer-motion";
+import { useRef } from "react";
+import { motion, useScroll, useSpring, useTransform } from "framer-motion";
 import {
   BatteryFull,
   Bookmark,
@@ -26,7 +27,6 @@ interface PlatformPreviewsProps {
   products: Product[];
   copyResult: GeneratedCopy;
   imageUrl: string | null;
-  isRevealing: boolean;
 }
 
 /**
@@ -397,26 +397,31 @@ export default function PlatformPreviews({
   products,
   copyResult,
   imageUrl,
-  isRevealing,
 }: PlatformPreviewsProps) {
+  // Scrubbed by scroll: the phones swing in from either side, untwisting as
+  // the section reaches the middle of the screen.
+  const ref = useRef<HTMLDivElement>(null);
+  const { scrollYProgress } = useScroll({ target: ref, offset: ["start end", "center center"] });
+  const t = useSpring(scrollYProgress, { stiffness: 120, damping: 26, mass: 0.4 });
+  const leftX = useTransform(t, [0, 1], ["-22vw", "0vw"]);
+  const rightX = useTransform(t, [0, 1], ["22vw", "0vw"]);
+  const spinL = useTransform(t, [0, 1], [38, 0]);
+  const spinR = useTransform(t, [0, 1], [-38, 0]);
+  const y = useTransform(t, [0, 1], [120, 0]);
+  const opacity = useTransform(t, [0, 0.35], [0, 1]);
+
   return (
-    <motion.div
+    <div
+      ref={ref}
       className="flex flex-col items-center justify-center gap-12 md:flex-row md:gap-16"
       style={{ perspective: "1200px" }}
-      initial={{ opacity: 0, y: 40 }}
-      animate={{ opacity: isRevealing ? 1 : 0, y: isRevealing ? 0 : 40 }}
-      transition={{ duration: 0.6, ease: "easeOut", delay: 0.1 }}
     >
-      <InstagramPhone
-        products={products}
-        copyResult={copyResult}
-        imageUrl={imageUrl}
-      />
-      <TikTokPhone
-        products={products}
-        copyResult={copyResult}
-        imageUrl={imageUrl}
-      />
-    </motion.div>
+      <motion.div className="w-full max-w-[330px]" style={{ x: leftX, y, rotateY: spinL, opacity }}>
+        <InstagramPhone products={products} copyResult={copyResult} imageUrl={imageUrl} />
+      </motion.div>
+      <motion.div className="w-full max-w-[330px]" style={{ x: rightX, y, rotateY: spinR, opacity }}>
+        <TikTokPhone products={products} copyResult={copyResult} imageUrl={imageUrl} />
+      </motion.div>
+    </div>
   );
 }

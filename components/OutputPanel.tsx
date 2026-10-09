@@ -1,10 +1,19 @@
-/* eslint-disable @next/next/no-img-element */
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import {
+  animate,
+  motion,
+  useMotionValue,
+  useScroll,
+  useTransform,
+} from "framer-motion";
 import type { Product, GeneratedCopy } from "@/lib/products";
+import { getCutout } from "@/lib/cutout";
 import ProductOverlays from "@/components/ProductOverlays";
 import ProductImage from "@/components/ProductImage";
+import ParticleProduct from "@/components/ParticleProduct";
+import BrandCheckPanel from "@/components/BrandCheckPanel";
 
 interface OutputPanelProps {
   products: Product[];
@@ -217,28 +226,71 @@ function AdCreative({
 
   const showScene = !!currentUrl && imgLoaded && !imgError;
 
+  // While the scene paints, the lead product hangs in the frame as a
+  // breathing constellation.
+  const breath = useMotionValue(0.35);
+  useEffect(() => {
+    if (showScene) return;
+    const c = animate(breath, [0.35, 0.92, 0.6, 0.92], {
+      duration: 5,
+      repeat: Infinity,
+      repeatType: "mirror",
+      ease: "easeInOut",
+    });
+    return () => c.stop();
+  }, [showScene, breath]);
+
+  // Gentle parallax: the scene drifts against the frame as the page scrolls.
+  const frameRef = useRef<HTMLDivElement>(null);
+  const { scrollYProgress } = useScroll({
+    target: frameRef,
+    offset: ["start end", "end start"],
+  });
+  const sceneY = useTransform(scrollYProgress, [0, 1], ["-4%", "4%"]);
+
   return (
     <figure className="flex flex-col gap-3">
       <div
+        ref={frameRef}
         className="relative aspect-[4/3] w-full overflow-hidden"
-        style={{ background: "var(--bark)", isolation: "isolate" }}
+        style={{ background: "rgba(56,36,22,0.35)", isolation: "isolate" }}
       >
-        {currentUrl && (
-          <img
-            src={currentUrl}
-            alt="AI-generated campaign scene"
-            onLoad={() => {
-              setImgLoaded(true);
-              onLoaded(currentUrl);
-            }}
-            onError={handleSceneError}
-            className="absolute inset-0 h-full w-full object-cover transition-opacity duration-700"
-            style={{ opacity: showScene ? 1 : 0 }}
-          />
+        {!showScene && products[0] && (
+          <div className="absolute inset-[16%]">
+            <ParticleProduct
+              src={getCutout(products[0].id).url}
+              form={breath}
+              pad={0.2}
+              count={900}
+            />
+          </div>
         )}
-        {showScene && <ProductOverlays products={products} />}
+        {/* The scene wipes in from the top once it has painted. */}
+        <motion.div
+          className="absolute inset-0"
+          initial={false}
+          animate={{
+            clipPath: showScene ? "inset(0% 0% 0% 0%)" : "inset(0% 0% 100% 0%)",
+          }}
+          transition={{ duration: 1.2, ease: [0.77, 0, 0.18, 1] }}
+        >
+          {currentUrl && (
+            <motion.img
+              src={currentUrl}
+              alt="AI-generated campaign scene"
+              onLoad={() => {
+                setImgLoaded(true);
+                onLoaded(currentUrl);
+              }}
+              onError={handleSceneError}
+              className="absolute inset-0 h-full w-full scale-[1.1] object-cover"
+              style={{ y: sceneY }}
+            />
+          )}
+          {showScene && <ProductOverlays products={products} />}
+        </motion.div>
         {!showScene && (
-          <div className="absolute inset-0 flex items-center justify-center">
+          <div className="absolute inset-x-0 bottom-6 flex items-center justify-center">
             {imgError ? (
               <button type="button" onClick={manualRetry} className="btn-ghost">
                 Scene failed — retry
@@ -521,11 +573,17 @@ export default function OutputPanel({
         </div>
       </Reveal>
 
+      {copyResult && !copyLoading && (
+        <Reveal revealed={shown} index={3}>
+          <BrandCheckPanel copy={copyResult} />
+        </Reveal>
+      )}
+
       {/* Strategy — plain text on the canvas, ruled, no more boxes. */}
       {copyResult && !copyLoading && (
         <Reveal
           revealed={shown}
-          index={3}
+          index={4}
           className="grid grid-cols-1 gap-x-[18px] gap-y-8 sm:grid-cols-3"
         >
           {[
