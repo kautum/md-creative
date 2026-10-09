@@ -31,7 +31,7 @@ const BURST = [
   { label: "Short ad", text: "Volume. Shine. No frizz.", x: -15, y: -30 },
   { label: "TikTok hook", text: "Your dryer is the reason your hair looks like that.", x: 15, y: -24 },
   { label: "Caption", text: "Frizzy mornings, solved.", x: -16, y: 14 },
-  { label: "Hashtags", text: "#MDLONDON #GREATHAIRMADEEASY", x: 15, y: 22 },
+  { label: "Hashtags", text: "#MDLONDON #THENUMBERS", x: 15, y: 22 },
   { label: "CTA", text: "Shop the routine.", x: -2, y: 36 },
 ];
 
@@ -106,7 +106,7 @@ function BurstCard({
         style={{
           borderRadius: "var(--radius-card)",
           border: "1px solid var(--line)",
-          background: "rgba(31,41,44,0.72)",
+          background: "rgba(29,28,26,0.72)",
           backdropFilter: "blur(10px)",
         }}
       />
@@ -201,13 +201,13 @@ export default function HeroStage({ product }: { product: Product }) {
           style={{ opacity: introOpacity }}
           className="pointer-events-none absolute left-4 top-24 z-10 flex flex-col gap-4 sm:left-6 lg:top-[16vh]"
         >
-          <span className="label">Great hair, made easy — campaign studio</span>
+          <span className="label">Hair confidence, every day — campaign studio</span>
           <h1 className="display">
             <motion.span style={{ x: mdX }} className="block">
               MD
             </motion.span>
             <motion.span style={{ x: creativeX }} className="block">
-              Creative<span style={{ color: "var(--accent)" }}>.</span>
+              Creative<span style={{ color: "var(--blue-hi)" }}>.</span>
             </motion.span>
           </h1>
         </motion.div>
@@ -223,7 +223,7 @@ export default function HeroStage({ product }: { product: Product }) {
             className="mx-auto -mt-[9vh] h-[18vh] w-[46vw]"
             style={{
               background:
-                "radial-gradient(ellipse at center, rgba(244,242,238,0.10), rgba(244,242,238,0) 65%)",
+                "radial-gradient(ellipse at center, rgba(243,237,226,0.10), rgba(243,237,226,0) 65%)",
             }}
           />
         </motion.div>
@@ -279,7 +279,7 @@ export default function HeroStage({ product }: { product: Product }) {
         >
           <div
             className="hidden max-w-sm flex-col gap-3 p-5 sm:flex"
-            style={{ borderRadius: "var(--radius-card)", background: "rgba(31,41,44,0.55)" }}
+            style={{ borderRadius: "var(--radius-card)", background: "rgba(29,28,26,0.55)" }}
           >
             <span className="label">
               <span className="credit">Built by</span> Kautum Krishnan Panjalaraja

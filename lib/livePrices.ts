@@ -8,6 +8,8 @@
 import { PRODUCTS, storeHandle } from "@/lib/products";
 
 const STORE_URL = "https://mdlondon.com/products.json?limit=250";
+const HOME_URL = "https://mdlondon.com/";
+const MAX_PROMOTIONS = 4;
 const REVALIDATE_SECONDS = 3600;
 export const STATIC_PRICES_AS_OF = "9 Oct 2026";
 
@@ -20,7 +22,40 @@ export interface LivePrice {
 export interface LiveCatalogue {
   source: "live" | "static";
   prices: Record<string, LivePrice>; // keyed by our product id
+  /** The store's announcement-bar promotions right now ([] if unknown). */
+  promotions: string[];
   asOf: string;
+}
+
+const ENTITIES: Record<string, string> = { "&amp;": "&", "&#39;": "'", "&quot;": '"', "&nbsp;": " ", "&pound;": "£" };
+
+/**
+ * The promotions in the store's announcement bar ("3 FOR 2 ON NUMBERS…").
+ * Failing safe matters here: on any problem this returns [] — the copy then
+ * mentions no promotion, rather than one that may have ended.
+ */
+async function getLivePromotions(): Promise<string[]> {
+  try {
+    const res = await fetch(HOME_URL, {
+      next: { revalidate: REVALIDATE_SECONDS },
+      headers: { "User-Agent": "md-creative (+https://md-creative.vercel.app)" },
+    });
+    if (!res.ok) throw new Error(`home responded ${res.status}`);
+    const html = await res.text();
+    const found = [...html.matchAll(/class="announcement-bar__text"[^>]*>([\s\S]*?)<\/p>/g)]
+      .map((m) =>
+        m[1]
+          .replace(/<[^>]+>/g, " ")
+          .replace(/&[#a-z0-9]+;/gi, (e) => ENTITIES[e] ?? " ")
+          .replace(/\s+/g, " ")
+          .trim(),
+      )
+      .filter((t) => t.length >= 4 && t.length <= 90);
+    return [...new Set(found)].slice(0, MAX_PROMOTIONS);
+  } catch (err) {
+    console.warn("[livePrices] no promotions:", err);
+    return [];
+  }
 }
 
 interface StoreVariant {
@@ -36,7 +71,8 @@ function money(v: unknown): number | null {
 
 /** Live prices, or a clearly labelled static fallback — never a silent mix-up. */
 export async function getLiveCatalogue(): Promise<LiveCatalogue> {
-  const fallback: LiveCatalogue = { source: "static", prices: {}, asOf: STATIC_PRICES_AS_OF };
+  const promotions = await getLivePromotions();
+  const fallback: LiveCatalogue = { source: "static", prices: {}, promotions, asOf: STATIC_PRICES_AS_OF };
   let products: { handle?: unknown; variants?: unknown }[];
   try {
     const res = await fetch(STORE_URL, {
@@ -68,5 +104,5 @@ export async function getLiveCatalogue(): Promise<LiveCatalogue> {
     const wasPrice = was.length && Math.max(...was) > price ? Math.max(...was) : undefined;
     prices[p.id] = { price, ...(wasPrice ? { wasPrice } : {}), available: offered.length > 0 };
   }
-  return { source: "live", prices, asOf: new Date().toISOString() };
+  return { source: "live", prices, promotions, asOf: new Date().toISOString() };
 }

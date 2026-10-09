@@ -15,7 +15,9 @@ export interface BrandCheckResult {
   detail: string;
 }
 
-const REQUIRED_TAGS = ["#MDLONDON", "#GREATHAIRMADEEASY"];
+// #GREATHAIRMADEEASY used to be required too; it appears nowhere on
+// mdlondon.com (checked Oct 2026), so it is no longer enforced.
+const REQUIRED_TAGS = ["#MDLONDON"];
 const EMOJI = /\p{Extended_Pictographic}/gu;
 
 /** Words, not tokens: a free-standing "—" or "&" isn't a word. */

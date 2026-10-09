@@ -15,7 +15,7 @@ const good = {
     "The blow-out you've been chasing. THE 2 delivers it.",
     "Not every day is a good hair day. THE 2 disagrees.",
   ],
-  campaignAngle: "Great hair, made easy.",
+  campaignAngle: "Great hair starts with the right routine.",
   creativeDirection: "",
   audienceTargeting: "",
   bestPlatform: "",
