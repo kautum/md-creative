@@ -18,7 +18,6 @@ import {
 } from "@/lib/history";
 import { decodeCampaign, SHARE_PREFIX, type SharedCampaign } from "@/lib/share";
 import type { LiveCatalogue } from "@/lib/livePrices";
-import { getCutout } from "@/lib/cutout";
 import HeroStage from "@/components/HeroStage";
 import Marquee from "@/components/Marquee";
 import RangeGallery from "@/components/RangeGallery";
@@ -347,11 +346,6 @@ export default function Home() {
   const hasSelection = selectedProducts.length > 0;
   const isBundle = selectedProducts.length >= 2;
   const heroProduct = selectedProducts[0] ?? HERO_DEFAULT;
-  const heroTone = getCutout(heroProduct.id).tone;
-  // The page's light follows the lead product (glides via @property --tone).
-  useEffect(() => {
-    document.documentElement.style.setProperty("--tone", heroTone);
-  }, [heroTone]);
   const showCampaign = hasGenerated && hasSelection;
   const canGenerate = hasSelection && !!selectedVibe && !isGenerating;
   const generateHint = !hasSelection
@@ -389,6 +383,7 @@ export default function Home() {
         onPickRoutine={handlePickRoutine}
         products={catalogue}
         priceNote={priceNote}
+        promotions={live?.promotions ?? []}
       />
 
       {/* ── 02 BRIEF ─────────────────────────────────────────────────── */}
@@ -527,7 +522,7 @@ export default function Home() {
             endorsed by mdlondon.
           </span>
           <span className="legal">
-            <span className="credit">Built by</span> Kautum Krishnan Panjalaraja · v3.1
+            <span className="credit">Built by</span> Kautum Krishnan Panjalaraja · v3.2
           </span>
         </div>
       </footer>

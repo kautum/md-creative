@@ -28,7 +28,7 @@ export const metadata: Metadata = {
   twitter: { card: "summary_large_image" },
 };
 
-export const viewport: Viewport = { themeColor: "#151c1e" };
+export const viewport: Viewport = { themeColor: "#141413" };
 
 export default function RootLayout({
   children,
@@ -45,7 +45,7 @@ export default function RootLayout({
           className="label-sm pointer-events-none fixed right-3 top-1/2 z-30 hidden -translate-y-1/2 lg:block"
           style={{ writingMode: "vertical-rl", color: "var(--fg-50)" }}
         >
-          MD CREATIVE — 3.1 — BY KPK
+          MD CREATIVE — 3.2 — BY KPK
         </span>
         <main>{children}</main>
       </body>

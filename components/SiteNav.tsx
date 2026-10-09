@@ -50,13 +50,13 @@ export default function SiteNav() {
       style={{
         // Transparent over the hero stage; frosted walnut once you're into
         // the content, so labels stay legible over cards and imagery.
-        backgroundColor: active ? "rgba(21,28,30,0.72)" : "rgba(21,28,30,0)",
+        backgroundColor: active ? "rgba(20,20,19,0.72)" : "rgba(20,20,19,0)",
         backdropFilter: active ? "blur(14px) saturate(140%)" : "none",
         borderBottom: `1px dashed ${active ? "var(--line)" : "transparent"}`,
       }}
     >
       <a href="#top" className="label shrink-0 text-[12px] sm:text-[14px]">
-        MD CREATIVE<span style={{ color: "var(--accent)" }}>.</span>
+        MD CREATIVE<span style={{ color: "var(--blue-hi)" }}>.</span>
       </a>
       <nav className="flex items-center gap-3 sm:gap-7">
         {NAV_SECTIONS.map((s) => (

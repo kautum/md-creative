@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { campaignLabel, matchRoutine, type Product } from "@/lib/products";
-import { getCutout } from "@/lib/cutout";
 import ProductImage from "@/components/ProductImage";
 
 const MAX_THUMBS = 4;
@@ -59,7 +58,7 @@ export default function SelectionCapsule({
             style={{
               borderRadius: "var(--radius-pill)",
               border: "1px solid var(--line)",
-              background: "rgba(21,28,30,0.78)",
+              background: "rgba(20,20,19,0.78)",
               backdropFilter: "blur(16px) saturate(140%)",
             }}
           >
@@ -68,7 +67,7 @@ export default function SelectionCapsule({
                 <span
                   key={p.id}
                   className="flex h-9 w-9 items-center justify-center rounded-full p-1"
-                  style={{ background: "var(--raised)", border: `1px solid ${getCutout(p.id).tone}` }}
+                  style={{ background: "var(--raised)", border: "1px solid var(--blue)" }}
                 >
                   <ProductImage product={p} className="h-full w-full" />
                 </span>
