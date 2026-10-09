@@ -230,3 +230,14 @@ export const PRODUCTS: Product[] = [
     productUrl: "https://mdlondon.com/products/the-6",
   },
 ];
+
+/**
+ * Human label for a selection: "BLOW" / "BLOW + THE 2" / "5-piece edit" /
+ * "Full Range". "Full Range" means every product — one rule, used everywhere.
+ */
+export function campaignLabel(products: Product[]): string {
+  if (products.length === 1) return products[0].name;
+  if (products.length === PRODUCTS.length) return "Full Range";
+  if (products.length >= 5) return `${products.length}-piece edit`;
+  return products.map((p) => p.name).join(" + ");
+}

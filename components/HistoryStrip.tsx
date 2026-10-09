@@ -1,7 +1,8 @@
-/* eslint-disable @next/next/no-img-element */
 "use client";
 
+import { PRODUCTS } from "@/lib/products";
 import type { HistoryEntry } from "@/lib/history";
+import ProductImage from "@/components/ProductImage";
 
 function relativeTime(ts: number): string {
   const diff = Date.now() - ts;
@@ -15,109 +16,69 @@ function relativeTime(ts: number): string {
   return `${d}d ago`;
 }
 
+/** Recent campaigns as a hairline-ruled list — click a row to restore it. */
 export default function HistoryStrip({
   entries,
+  activeId,
   onRestore,
   onClear,
 }: {
   entries: HistoryEntry[];
+  activeId: string | null;
   onRestore: (entry: HistoryEntry) => void;
   onClear: () => void;
 }) {
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <span className="flex items-center gap-2.5">
-          <span
-            aria-hidden
-            className="inline-block h-2 w-2 rounded-full"
-            style={{ backgroundColor: "var(--accent)" }}
-          />
-          <span
-            className="font-heading text-xs font-medium uppercase tracking-[0.25em]"
-            style={{ color: "var(--text-muted)" }}
-          >
-            Recent Campaigns
-          </span>
-        </span>
-        <button
-          type="button"
-          onClick={onClear}
-          className="text-[11px] uppercase tracking-[0.15em] transition-colors"
-          style={{ color: "var(--text-muted)" }}
-          onMouseEnter={(e) =>
-            (e.currentTarget.style.color = "var(--text-primary)")
-          }
-          onMouseLeave={(e) =>
-            (e.currentTarget.style.color = "var(--text-muted)")
-          }
-        >
+    <div className="flex flex-col">
+      <div className="flex items-baseline justify-between pb-3">
+        <span className="label">Recent campaigns</span>
+        <button type="button" onClick={onClear} className="link">
           Clear
         </button>
       </div>
-
-      <div className="flex gap-3 overflow-x-auto pb-1">
-        {entries.map((entry) => (
-          <button
-            key={entry.id}
-            type="button"
-            onClick={() => onRestore(entry)}
-            className="flex shrink-0 items-center gap-3 p-3 text-left transition-colors"
-            style={{
-              width: 210,
-              backgroundColor: "var(--bg-surface)",
-              border: "1px solid var(--border)",
-            }}
-            onMouseEnter={(e) =>
-              (e.currentTarget.style.borderColor = "var(--accent)")
-            }
-            onMouseLeave={(e) =>
-              (e.currentTarget.style.borderColor = "var(--border)")
-            }
-          >
-            <img
-              src={entry.productImage}
-              alt={entry.productNames[0] ?? "campaign"}
-              className="shrink-0 rounded-md object-contain"
-              style={{
-                width: 40,
-                height: 40,
-                backgroundColor: "var(--bg-surface-2)",
-              }}
-            />
-            <div className="flex min-w-0 flex-col gap-0.5">
-              <span className="flex items-baseline gap-1.5">
-                <span
-                  className="font-heading truncate text-xs font-medium tracking-wide"
-                  style={{ color: "var(--text-primary)" }}
-                >
-                  {entry.productNames.length >= 6
-                    ? "Full Range"
-                    : entry.productNames.join(" + ")}
+      <ul>
+        {entries.map((entry) => {
+          const lead = PRODUCTS.find((p) => p.id === entry.productIds[0]);
+          const isActive = entry.id === activeId;
+          return (
+            <li key={entry.id} className="rule-dashed">
+              <button
+                type="button"
+                onClick={() => onRestore(entry)}
+                className="flex w-full items-center gap-3 py-3 text-left transition-opacity hover:opacity-100"
+                style={{ opacity: isActive ? 1 : 0.75 }}
+              >
+                <span className="h-10 w-10 shrink-0">
+                  {lead && (
+                    <ProductImage
+                      product={lead}
+                      className="h-full w-full"
+                    />
+                  )}
+                </span>
+                <span className="flex min-w-0 flex-1 flex-col gap-1">
+                  <span className="label truncate">
+                    {entry.label ?? entry.productNames.join(" + ")} ·{" "}
+                    {entry.vibe}
+                  </span>
+                  <span
+                    className="body-sm truncate"
+                    style={{ color: "var(--cream-70)", fontSize: 13 }}
+                  >
+                    {entry.campaignAngle || entry.caption}
+                  </span>
                 </span>
                 <span
-                  className="shrink-0 text-[10px]"
-                  style={{ color: "var(--accent)" }}
+                  className="label-sm shrink-0"
+                  style={{ color: "var(--cream-50)" }}
                 >
-                  {entry.vibe}
+                  {relativeTime(entry.timestamp)}
                 </span>
-              </span>
-              <span
-                className="truncate text-[11px] leading-snug"
-                style={{ color: "var(--text-muted)" }}
-              >
-                {entry.campaignAngle || entry.caption}
-              </span>
-              <span
-                className="text-[10px]"
-                style={{ color: "var(--text-dim)" }}
-              >
-                {relativeTime(entry.timestamp)}
-              </span>
-            </div>
-          </button>
-        ))}
-      </div>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
     </div>
   );
 }
