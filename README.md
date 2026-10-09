@@ -21,6 +21,29 @@ for the Junior AI Developer role at [mdlondon](https://mdlondon.com)*
 
 ---
 
+## What's new in 2.0
+
+- **Darkroom redesign.** The interface now follows a warm-dark product-editorial
+  system: walnut canvas, cream uppercase type, one filled button per section,
+  hairline dashed dividers, no shadows. Every product is shown as a
+  background-removed cutout floating in the dark, so there are no white boxes.
+- **Four-section flow.** Range → Brief → Campaign → Preview, with a fixed
+  scroll-spy nav. Generating scrolls you straight to the result.
+- **Fallback model fixed.** Groq retired `llama-3.3-70b-versatile`, so every
+  rate-limited generation in 1.0 failed instead of falling back. It now falls back
+  to `openai/gpt-oss-20b`.
+- **Brand voice is enforced, not just suggested.** The banned-phrase list is sent
+  to the model, and output that uses one is regenerated once.
+- **Inputs are validated at the API.** Unknown products, vibes or hair concerns
+  are rejected with a 400 instead of being interpolated into the prompt.
+- **Copy and image stay in sync.** "New campaign" regenerates both. Refining keeps
+  the original scene, and refined copy is saved back to the campaign history.
+- **Scene loading survives the Pollinations rate limit** (see Known limitations).
+  Retries wait out the limit instead of failing within a second, and the phone
+  previews use whichever scene actually loaded.
+
+---
+
 ## Why this, not a chatbot
 
 mdlondon already has an AI chatbot — [The Knowing](https://mdlondon.com/pages/theknowing). Building
@@ -187,7 +210,7 @@ below for where that bites and how a production version would fix it.
 
 The text generation model is **`openai/gpt-oss-120b`** via Groq's free tier, chosen
 after comparing the available free-tier Groq models head to head. It writes noticeably
-less formulaic copy than Llama 3.3 70B — which matters for short-form marketing, where
+less formulaic copy than the other models on the account — which matters for short-form marketing, where
 generic phrasing is immediately visible to a reader.
 
 Because gpt-oss-120b is a reasoning model, `reasoning_effort` is set to `"low"` and
@@ -195,7 +218,7 @@ Because gpt-oss-120b is a reasoning model, `reasoning_effort` is set to `"low"` 
 token budget before completing the JSON output.
 
 **Fallback chain:** on a 429 or 5xx from gpt-oss-120b, the route retries once after a
-1.5s backoff, then falls back to `llama-3.3-70b-versatile` for that generation. The user
+1.5s backoff, then falls back to `openai/gpt-oss-20b` for that generation. The user
 sees a subtle "running on backup model" note rather than a raw API error string.
 
 ### Brand voice system
@@ -220,11 +243,11 @@ content, not polished ad voiceover.
 | Language | TypeScript | Type safety across the generation pipeline and component tree |
 | Styling | Tailwind v4 | CSS variables + utility classes; theme tokens in one place |
 | LLM (text) | Groq + gpt-oss-120b | Free tier, fast inference, least formulaic copy of the free models tested |
-| LLM (fallback) | Groq + Llama 3.3 70B | Higher TPM than primary; same provider, zero config change |
+| LLM (fallback) | Groq + gpt-oss-20b | Same model family and params, more rate-limit headroom |
 | Image generation | Pollinations.ai (flux) | Completely free, no API key, browser-loadable URL |
 | Compositing | Browser canvas + flood-fill | Zero cost, no external API; cutout quality sufficient for Tier 1/2 |
-| Animation | Framer Motion | Stagger, reveal, and typewriter effects |
-| Fonts | Quicksand + Jost + Hanken Grotesk | Match mdlondon's rounded-sans wordmark; Jost for editorial nav |
+| Animation | CSS + Framer Motion | Reveal stagger, typewriter, drifting hero object; all respect reduced motion |
+| Fonts | Inter (ss01) | Free stand-in for Halyard Display, the face the design system was measured on |
 | Hosting | Vercel | Free tier, auto-deploys from GitHub; the Groq call finishes well within the function timeout |
 
 ---
@@ -266,7 +289,14 @@ free tier. Rapid back-to-back generations trigger the fallback chain, and sustai
 surface a friendly "running on backup model" or "busy, try again" message instead of a raw
 error. A paid key removes the ceiling for heavy use.
 
-**Image load latency.** Pollinations can take 10–25 seconds depending on load. The cycling
+**Pollinations free tier.** Without an API key, Pollinations allows roughly one
+image per minute per visitor and answers HTTP 402 inside that window. It also serves
+`sana` rather than the requested `flux`, and stamps a small watermark despite
+`nologo=true` (all measured October 2026). The scene card retries at 20s and 45s and
+says so. A key from enter.pollinations.ai lifts all three limits, but it would have to
+go through a server-side proxy, because the browser loads the image directly.
+
+**Image load latency.** Pollinations can take 5–25 seconds depending on load. The cycling
 progress indicator covers the wait, but it is a real wait.
 
 ---
