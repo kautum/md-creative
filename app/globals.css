@@ -1,29 +1,30 @@
 @import "tailwindcss";
 
-/* MD Creative 3.2 — three colours, chosen by KPK:
-     soft black  #141413  the canvas (warm, never pure #000)
-     warm ivory  #F3EDE2  all type and hairlines
-     deep blue   #23458F  deep editorial blue: the one colour that means
-                          "chosen" or "act" — primary button, selections,
-                          the glow, progress, the full stop in MD CREATIVE.
-   Products bring their own colours in their photographs; the interface
-   stays in these three. Layout and type rules follow designs/DESIGN (3).md. */
+/* MD Creative 3.4 — blue ink on ivory paper, chosen by KPK.
+     warm ivory  #F4EFE6  the paper
+     ink blue    #1B3577  all type, hairlines and the botanical engravings
+     deep blue   #1F3F8A  fills that mean "chosen" or "act"
+   Headlines and the conversational voice are set in Crimson Pro (an
+   editorial serif); labels and UI stay in Inter. Contrast (WCAG): ink on
+   ivory 10.1:1, secondary ink (74%) 5.0:1 — both pass AA at small sizes.
+   Products bring their own colours in their photographs. */
 
 :root {
-  --bg: #141413;
-  --raised: #1d1c1a;
-  --line: #302e2a;
-  --slate: #57534c;
-  --fg: #f3ede2;
-  --blue: #23458f;
-  --blue-hi: #2d57b0; /* hover / pressed step of the same blue */
+  --bg: #f4efe6;
+  --raised: #ece6da;
+  --line: #cfcfd2;
+  --slate: #8d94ad;
+  --fg: #1b3577;
+  --blue: #1f3f8a;
+  --blue-hi: #2a52ad; /* hover / pressed step of the same blue */
+  --on-blue: #f4efe6; /* type on a blue fill */
   --accent: var(--blue);
   --tone: var(--blue);
 
-  /* Ivory at reduced strength — secondary text, quiet hairlines. */
-  --fg-70: rgba(243, 237, 226, 0.7);
-  --fg-50: rgba(243, 237, 226, 0.52);
-  --fg-08: rgba(243, 237, 226, 0.08);
+  /* Ink at reduced strength — secondary text, quiet fills. */
+  --fg-70: rgba(27, 53, 119, 0.86);
+  --fg-50: rgba(27, 53, 119, 0.74);
+  --fg-08: rgba(27, 53, 119, 0.06);
 
   --radius-card: 12px;
   --radius-ghost: 22.5px;
@@ -40,6 +41,7 @@
   --color-tone: var(--tone);
   --color-blue: var(--blue);
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-crimson), ui-serif, Georgia, serif;
 }
 
 html {
@@ -84,12 +86,14 @@ body {
     text-transform: uppercase;
   }
   .heading {
+    font-family: var(--font-crimson), ui-serif, Georgia, serif;
     font-size: clamp(30px, 3.4vw, 41px);
     line-height: 0.9;
     font-weight: 500;
     text-transform: uppercase;
   }
   .display {
+    font-family: var(--font-crimson), ui-serif, Georgia, serif;
     font-size: clamp(64px, 12vw, 176px);
     line-height: 0.9;
     font-weight: 500;
@@ -98,6 +102,7 @@ body {
 
   /* Mixed-case 400 — the only conversational voice. */
   .body-voice {
+    font-family: var(--font-crimson), ui-serif, Georgia, serif;
     font-size: clamp(20px, 2vw, 29px);
     line-height: 1.26;
     font-weight: 400;
@@ -148,7 +153,7 @@ body {
     padding: 14px 24px;
     border-radius: var(--radius-pill);
     background: var(--blue);
-    color: var(--fg);
+    color: var(--on-blue);
     border: 1px solid var(--blue);
     font-size: 14px;
     font-weight: 500;
@@ -216,7 +221,7 @@ body {
   .chip[aria-selected="true"]:hover:not(:disabled) {
     background: var(--blue);
     border-color: var(--blue);
-    color: var(--fg);
+    color: var(--on-blue);
   }
   .chip:disabled {
     opacity: 0.35;

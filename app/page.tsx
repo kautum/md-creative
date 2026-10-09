@@ -30,6 +30,7 @@ import ShareCard from "@/components/ShareCard";
 import DownloadBar from "@/components/DownloadBar";
 import HistoryStrip from "@/components/HistoryStrip";
 import SelectionCapsule from "@/components/SelectionCapsule";
+import Botanical from "@/components/Botanical";
 
 // Cycled below the Generate button while a generation is in flight.
 const GENERATION_STEPS = [
@@ -513,7 +514,8 @@ export default function Home() {
       </section>
 
       <footer className="flex flex-col gap-6 px-4 pb-28 pt-[68px] sm:px-6 lg:pr-12">
-        <span className="display" style={{ fontSize: "clamp(64px, 14vw, 220px)", color: "var(--raised)" }}>
+        <Botanical kind="grove" seed={2026} className="h-[24vh] min-h-[140px] w-full" />
+        <span className="display" style={{ fontSize: "clamp(64px, 14vw, 220px)", color: "var(--slate)" }}>
           KPK.
         </span>
         <div className="flex flex-col gap-2 sm:flex-row sm:justify-between">
@@ -522,7 +524,7 @@ export default function Home() {
             endorsed by mdlondon.
           </span>
           <span className="legal">
-            <span className="credit">Built by</span> Kautum Krishnan Panjalaraja · v3.2
+            <span className="credit">Built by</span> Kautum Krishnan Panjalaraja · v3.4
           </span>
         </div>
       </footer>
@@ -579,7 +581,10 @@ function SectionHead({
         <span className="label" style={{ color: "var(--fg-50)" }}>
           {index}
         </span>
-        <h2 className="heading">{title}</h2>
+        <div className="flex items-end gap-4">
+          <h2 className="heading">{title}</h2>
+          <Botanical kind="sprig" seed={title.length * 7 + 3} className="-mb-1 h-12 w-10 shrink-0 sm:h-14 sm:w-12" />
+        </div>
       </div>
       {children}
     </div>
@@ -589,12 +594,13 @@ function SectionHead({
 function EmptyState({ text }: { text: string }) {
   return (
     <div
-      className="flex min-h-[40vh] items-center justify-center p-8 text-center"
+      className="flex min-h-[40vh] flex-col items-center justify-center p-8 text-center"
       style={{
         borderRadius: "var(--radius-card)",
         border: "1px dashed var(--line)",
       }}
     >
+      <Botanical kind="sprig" seed={text.length} className="mb-4 h-16 w-14" />
       <span className="label" style={{ color: "var(--fg-50)" }}>
         {text}
       </span>

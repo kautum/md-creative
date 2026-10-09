@@ -413,7 +413,8 @@ export default function PlatformPreviews({
   return (
     <div
       ref={ref}
-      className="flex flex-col items-center justify-center gap-12 md:flex-row md:gap-16"
+      // overflow-x-clip: the phones wait off-screen for their scroll-in.
+      className="flex flex-col items-center justify-center gap-12 overflow-x-clip md:flex-row md:gap-16"
       style={{ perspective: "1200px" }}
     >
       <motion.div className="w-full max-w-[330px]" style={{ x: leftX, y, rotateY: spinL, opacity }}>

@@ -15,6 +15,7 @@ import type { Product } from "@/lib/products";
 import { getCutout } from "@/lib/cutout";
 import ProductImage from "@/components/ProductImage";
 import ParticleProduct, { type Pointer } from "@/components/ParticleProduct";
+import Botanical from "@/components/Botanical";
 
 /**
  * The hero is a pinned stage: 340vh of scroll scrubs one product through
@@ -106,7 +107,7 @@ function BurstCard({
         style={{
           borderRadius: "var(--radius-card)",
           border: "1px solid var(--line)",
-          background: "rgba(29,28,26,0.72)",
+          background: "rgba(244,239,230,0.86)",
           backdropFilter: "blur(10px)",
         }}
       />
@@ -192,7 +193,7 @@ export default function HeroStage({ product }: { product: Product }) {
           className="absolute inset-0"
           style={{
             background:
-              "radial-gradient(ellipse 42% 48% at 56% 42%, color-mix(in srgb, var(--tone) 34%, transparent), color-mix(in srgb, var(--tone) 9%, transparent) 52%, transparent 80%)",
+              "radial-gradient(ellipse 40% 46% at 55% 44%, rgba(255,255,255,0.8), rgba(255,255,255,0.3) 45%, rgba(255,255,255,0) 80%)",
           }}
         />
 
@@ -207,9 +208,14 @@ export default function HeroStage({ product }: { product: Product }) {
               MD
             </motion.span>
             <motion.span style={{ x: creativeX }} className="block">
-              Creative<span style={{ color: "var(--blue-hi)" }}>.</span>
+              Creative<span style={{ color: "var(--blue)" }}>.</span>
             </motion.span>
           </h1>
+        </motion.div>
+
+        {/* Engraved trees frame the stage, growing in as it loads. */}
+        <motion.div style={{ opacity: introOpacity }} className="pointer-events-none absolute inset-0">
+          <Botanical kind="tree" seed={21} className="absolute bottom-0 right-[2vw] h-[46vh] w-auto opacity-60" />
         </motion.div>
 
         {/* Plinth: a horizon line and a pool of light the object lands on. */}
@@ -223,7 +229,7 @@ export default function HeroStage({ product }: { product: Product }) {
             className="mx-auto -mt-[9vh] h-[18vh] w-[46vw]"
             style={{
               background:
-                "radial-gradient(ellipse at center, rgba(243,237,226,0.10), rgba(243,237,226,0) 65%)",
+                "radial-gradient(ellipse at center, rgba(26,26,24,0.10), rgba(26,26,24,0) 65%)",
             }}
           />
         </motion.div>
@@ -279,7 +285,7 @@ export default function HeroStage({ product }: { product: Product }) {
         >
           <div
             className="hidden max-w-sm flex-col gap-3 p-5 sm:flex"
-            style={{ borderRadius: "var(--radius-card)", background: "rgba(29,28,26,0.55)" }}
+            style={{ borderRadius: "var(--radius-card)", background: "rgba(235,228,216,0.75)" }}
           >
             <span className="label">
               <span className="credit">Built by</span> Kautum Krishnan Panjalaraja

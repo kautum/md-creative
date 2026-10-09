@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
+import { Crimson_Pro, Inter } from "next/font/google";
 import SiteNav from "@/components/SiteNav";
 import "./globals.css";
 
@@ -9,6 +9,15 @@ const inter = Inter({
   subsets: ["latin"],
   weight: ["400", "500"],
   variable: "--font-inter",
+});
+
+// Crimson Pro — an editorial book serif for headlines and the conversational
+// voice; Inter keeps the labels and UI.
+const crimson = Crimson_Pro({
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+  style: ["normal", "italic"],
+  variable: "--font-crimson",
 });
 
 const DESCRIPTION =
@@ -28,7 +37,7 @@ export const metadata: Metadata = {
   twitter: { card: "summary_large_image" },
 };
 
-export const viewport: Viewport = { themeColor: "#141413" };
+export const viewport: Viewport = { themeColor: "#f4efe6" };
 
 export default function RootLayout({
   children,
@@ -36,7 +45,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${inter.variable} h-full antialiased`}>
+    <html lang="en" className={`${inter.variable} ${crimson.variable} h-full antialiased`}>
       <body className="min-h-full">
         <SiteNav />
         {/* Edge serial — the product-artifact label running down the margin. */}
@@ -45,7 +54,7 @@ export default function RootLayout({
           className="label-sm pointer-events-none fixed right-3 top-1/2 z-30 hidden -translate-y-1/2 lg:block"
           style={{ writingMode: "vertical-rl", color: "var(--fg-50)" }}
         >
-          MD CREATIVE — 3.2 — BY KPK
+          MD CREATIVE — 3.4 — BY KPK
         </span>
         <main>{children}</main>
       </body>

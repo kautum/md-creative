@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ROUTINES, matchRoutine, type Product } from "@/lib/products";
 import ProductImage from "@/components/ProductImage";
+import Botanical from "@/components/Botanical";
 
 type Filter = "all" | "tool" | "number";
 const FILTERS: { id: Filter; label: string }[] = [
@@ -48,10 +49,12 @@ function Card({
       className="group relative flex h-[min(62vh,520px)] w-[var(--card)] shrink-0 origin-left snap-start flex-col justify-between overflow-hidden p-6 text-left will-change-transform"
       style={{
         borderRadius: "var(--radius-card)",
-        border: `1px solid ${selected ? "var(--blue-hi)" : "var(--line)"}`,
+        // Picked: a crisp blue outline on a barely-blue card — on ivory a heavy
+        // tint reads as muddy grey.
+        border: selected ? "1.5px solid var(--blue)" : "1px solid var(--line)",
         background: selected
-          ? "color-mix(in srgb, var(--blue) 26%, var(--bg))"
-          : "color-mix(in srgb, var(--raised) 70%, transparent)",
+          ? "color-mix(in srgb, var(--blue) 7%, var(--bg))"
+          : "color-mix(in srgb, var(--raised) 55%, var(--bg))",
         transition: "background-color 0.3s ease, border-color 0.3s ease",
       }}
     >
@@ -59,7 +62,7 @@ function Card({
         <span className="label" style={{ color: "var(--fg-50)" }}>
           {String(index + 1).padStart(2, "0")}
         </span>
-        <span className="label" style={{ color: selected ? "var(--fg)" : "var(--fg-50)" }}>
+        <span className="label" style={{ color: selected ? "var(--blue)" : "var(--fg-50)" }}>
           {selected ? "Picked ✓" : "Pick +"}
         </span>
       </div>
@@ -70,7 +73,7 @@ function Card({
           style={{
             opacity: selected ? 0.95 : 0.5,
             background:
-              "radial-gradient(circle at 55% 45%, color-mix(in srgb, var(--blue) 45%, transparent), transparent 68%)",
+              "radial-gradient(circle at 55% 45%, rgba(255,255,255,0.8), rgba(255,255,255,0) 68%)",
           }}
         />
         <ProductImage
@@ -86,7 +89,7 @@ function Card({
           <Price product={product} />
         </div>
         {/* mdlondon's own line for the product, quoted. */}
-        <p className="body-sm line-clamp-2" style={{ color: "var(--fg-70)", fontSize: 14 }}>
+        <p className="body-sm line-clamp-2 font-serif italic" style={{ color: "var(--fg-70)", fontSize: 17, lineHeight: 1.3 }}>
           “{product.slogan}”
         </p>
       </div>
@@ -157,7 +160,7 @@ export default function RangeGallery({
       // Cards ahead recede gently; cards scrolled past fade out faster.
       const a = d >= 0 ? Math.min(d, 3) * 0.6 : Math.min(-d, 1.5) * 1.3;
       el.style.transform = `scale(${1 - Math.min(a, 1.4) * 0.06})`;
-      el.style.opacity = String(Math.max(0.25, 1 - a * 0.3));
+      el.style.opacity = String(Math.max(0.6, 1 - a * 0.18));
       if (Math.abs(d) < bestDist) {
         bestDist = Math.abs(d);
         best = i;
@@ -246,7 +249,10 @@ export default function RangeGallery({
           <span className="label" style={{ color: "var(--fg-50)" }}>
             01 — The range · {priceNote}
           </span>
-          <h2 className="heading">Pick the object.</h2>
+          <div className="flex items-end gap-4">
+            <h2 className="heading">Pick the object.</h2>
+            <Botanical kind="sprig" seed={17} className="-mb-1 h-12 w-10 shrink-0 sm:h-14 sm:w-12" />
+          </div>
         </div>
         <div className="flex items-center gap-6">
           <span className="label" style={{ color: "var(--fg-50)" }}>
@@ -261,7 +267,7 @@ export default function RangeGallery({
 
       {promotions.length > 0 && (
         <p className="label-sm flex flex-wrap items-center gap-x-3 gap-y-1 px-4 sm:px-6" style={{ color: "var(--fg-70)" }}>
-          <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: "var(--blue-hi)" }} />
+          <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: "var(--blue)" }} />
           <span style={{ color: "var(--fg-50)" }}>On now at mdlondon.com</span>
           {promotions.map((p) => (
             <span key={p}>{p}</span>
@@ -354,7 +360,7 @@ export default function RangeGallery({
       <div className="mx-4 h-px sm:mx-6 lg:mr-12" style={{ background: "var(--line)" }}>
         <div
           className="h-px transition-[width] duration-300"
-          style={{ width: `${((active + 1) / shown.length) * 100}%`, background: "var(--blue-hi)" }}
+          style={{ width: `${((active + 1) / shown.length) * 100}%`, background: "var(--blue)" }}
         />
       </div>
     </section>

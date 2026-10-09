@@ -145,7 +145,7 @@ function buildPollinationsRetryUrl(baseUrl: string): string {
 // Anonymous Pollinations allows roughly one image a minute per visitor and
 // answers 402 inside that window (measured Oct 2026). An <img> can't see the
 // status, so every failure waits out the window rather than retrying at once.
-const RETRY_DELAYS_MS = [20_000, 45_000];
+const RETRY_DELAYS_MS = [20_000, 45_000, 75_000];
 
 // A static "Generating..." for 10-25s reads as stuck, so cycle phases and hold
 // on the last one rather than looping.
@@ -187,12 +187,14 @@ function AdCreative({
   products,
   imageUrl,
   imageLoading,
+  copyLoading,
   visualStyle,
   onLoaded,
 }: {
   products: Product[];
   imageUrl: string | null;
   imageLoading: boolean;
+  copyLoading: boolean;
   visualStyle: string | undefined;
   onLoaded: (url: string) => void;
 }) {
@@ -253,7 +255,7 @@ function AdCreative({
       <div
         ref={frameRef}
         className="relative aspect-[4/3] w-full overflow-hidden"
-        style={{ background: "rgba(29,28,26,0.35)", isolation: "isolate" }}
+        style={{ background: "rgba(235,228,216,0.6)", isolation: "isolate" }}
       >
         {!showScene && products[0] && (
           <div className="absolute inset-[16%]">
@@ -300,7 +302,7 @@ function AdCreative({
               <SceneProgress retrying={retryCount > 0} />
             ) : (
               <span className="label" style={{ color: "var(--fg-50)" }}>
-                Waiting for the brief
+                {copyLoading ? "Writing the copy first —" : "Waiting for the brief"}
               </span>
             )}
           </div>
@@ -437,6 +439,7 @@ export default function OutputPanel({
             products={products}
             imageUrl={imageUrl}
             imageLoading={imageLoading}
+            copyLoading={copyLoading}
             visualStyle={copyResult?.visual_style}
             onLoaded={onSceneLoaded}
           />

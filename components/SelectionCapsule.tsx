@@ -58,7 +58,7 @@ export default function SelectionCapsule({
             style={{
               borderRadius: "var(--radius-pill)",
               border: "1px solid var(--line)",
-              background: "rgba(20,20,19,0.78)",
+              background: "rgba(244,239,230,0.86)",
               backdropFilter: "blur(16px) saturate(140%)",
             }}
           >
