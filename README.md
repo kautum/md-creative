@@ -21,10 +21,38 @@ for the Junior AI Developer role at [mdlondon](https://mdlondon.com)*
 
 ---
 
+## What's new in 3.4
+
+**Blue ink on ivory paper.** 3.2 read the colours the wrong way round, with a black
+canvas. 3.4 is the page KPK described: an ivory ground, type in deep blue, and line
+illustrations.
+
+| Role | Colour | |
+|------|--------|---|
+| Paper | Warm ivory | `#F4EFE6` |
+| Type, hairlines, engravings | Ink blue | `#1B3577` |
+| "Chosen" / "act" fills | Deep editorial blue | `#1F3F8A` |
+
+Headlines and the conversational voice are set in **Crimson Pro**, an editorial
+book serif; labels and UI stay in Inter. Contrast was checked with the WCAG formula:
+ink on ivory is 10.1:1, and secondary ink at 74% is 5.0:1. Both pass AA.
+
+**Engravings that grow.** Trees, sprigs and a grove are drawn by code in hairline
+ink, after the fine line art on mdlondon's Numbers packaging. Each is generated
+from a seed, so it looks natural but is identical on every visit. When one scrolls
+into view it grows: trunk first, then each level of branches, then the leaves
+unfurl. There's a tree on the hero stage, a sprig beside every section title and
+empty state, and a grove along the footer. The marquee's separator is the hedera
+❧, a classic typographic leaf.
+
+Also: the scene retries up to three times (20s, 45s, 75s) before offering a manual
+retry, and while the copy is being written the scene frame says so, instead of the
+old "waiting for the brief".
+
 ## What's new in 3.2
 
-**Three colours.** Soft black `#141413`, warm ivory `#F3EDE2` and deep editorial blue
-`#23458F`. Blue is the one colour that means "chosen" or "act": the primary button,
+**Three colours** (superseded by 3.3, which makes ivory the canvas). Soft black
+`#141413`, warm ivory `#F3EDE2` and deep editorial blue `#23458F`. Blue is the one colour that means "chosen" or "act": the primary button,
 picked cards and chips, the glow, progress lines and the full stop in
 **MD CREATIVE.** Products keep their own colours in their photographs; the
 interface stays in these three.

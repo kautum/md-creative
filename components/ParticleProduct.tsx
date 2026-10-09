@@ -42,12 +42,12 @@ interface Particle {
 }
 
 const SAMPLE_MAX = 240; // px, longest side of the alpha sample
-const IVORY = [243, 237, 226];
+const INK = [27, 53, 119];
 const WIND_RADIUS = 120; // px
 const WIND_FRESH_MS = 160; // only a moving pointer blows
 
 function mix(c: number[], t: number) {
-  return c.map((v, i) => Math.round(v + (IVORY[i] - v) * t));
+  return c.map((v, i) => Math.round(v + (INK[i] - v) * t));
 }
 
 async function sample(src: string, count: number, kind: ParticleKind) {
@@ -78,10 +78,9 @@ async function sample(src: string, count: number, kind: ParticleKind) {
     const y = Math.floor(i / w);
     const rgb = [px[i * 4], px[i * 4 + 1], px[i * 4 + 2]];
     const r = Math.random();
-    // Mist reads lighter than the bottle, as spray does; strands keep the
-    // product's colour with the odd strand catching the light.
-    // Loose strands are seen against the dark, so they catch the light.
-    const color = kind === "mist" ? mix(rgb, r < 0.25 ? 0.85 : 0.45) : mix(rgb, r < 0.2 ? 0.8 : 0.42);
+    // On the ivory canvas both kinds deepen the product's colour a little so
+    // they read against the light; the odd strand is darker, like a shadow.
+    const color = kind === "mist" ? mix(rgb, r < 0.25 ? 0.4 : 0.22) : mix(rgb, r < 0.2 ? 0.45 : 0.12);
     particles.push({
       tx: (x + Math.random()) / w,
       ty: (y + Math.random()) / h,
