@@ -6,7 +6,7 @@ import {
   getCompositeLayout,
   BASE_MAX_HEIGHT,
 } from "@/components/ProductOverlays";
-import { getProductCutout } from "@/lib/cutout";
+import { getCutout } from "@/lib/cutout";
 
 interface DownloadBarProps {
   products: Product[];
@@ -124,10 +124,10 @@ function drawContactShadow(
 
 /**
  * Redraw the AD CREATIVE composite onto an offscreen canvas, matching what was
- * shown on screen: the SAME cutout system, real-scale layout and contact
+ * shown on screen: the SAME pre-built cutouts, real-scale layout and contact
  * shadows (lib/cutout + ProductOverlays.getCompositeLayout), not the old
  * multiply blend. Tiers: hero (1), flat-lay (2-4), pure scene (5+). Cutouts are
- * same-origin data URLs so they never taint the canvas; only the cross-origin
+ * same-origin static files so they never taint the canvas; only the cross-origin
  * scene can — on taint / load failure we fall back to opening the raw scene.
  */
 async function downloadComposite(
@@ -153,9 +153,7 @@ async function downloadComposite(
     const slots = getCompositeLayout(products); // [] for 0 or 5+
     // Resolve cutouts up front, in slot order (back → front), so the canvas
     // paint order matches the on-screen DOM order.
-    const cutouts = await Promise.all(
-      slots.map((s) => getProductCutout(s.product.imageUrl)),
-    );
+    const cutouts = slots.map((s) => getCutout(s.product.id));
 
     for (let i = 0; i < slots.length; i++) {
       const slot = slots[i];
@@ -164,38 +162,25 @@ async function downloadComposite(
       const cy = (slot.top / 100) * H;
       const drawH = (slot.heightPct / 100) * H;
 
-      if (cut) {
-        const img = await loadImage(cut.url);
-        const drawW = drawH * (img.naturalWidth / img.naturalHeight);
-        const prominence = Math.min(1, slot.heightPct / BASE_MAX_HEIGHT);
-        const opacity = 0.22 + 0.24 * prominence;
-        // Contact shadow first, then the product on top.
-        drawContactShadow(
-          ctx,
-          cx,
-          cy + drawH / 2,
-          drawW,
-          drawH,
-          cut.footprint,
-          opacity,
-        );
-        ctx.save();
-        ctx.translate(cx, cy);
-        ctx.rotate((slot.rotate * Math.PI) / 180);
-        ctx.drawImage(img, -drawW / 2, -drawH / 2, drawW, drawH);
-        ctx.restore();
-      } else {
-        // Cutout failed — fall back to the raw image via multiply (matches the
-        // on-screen fallback) so the product still appears.
-        const img = await loadImage(slot.product.imageUrl);
-        const drawW = drawH * (img.naturalWidth / img.naturalHeight);
-        ctx.save();
-        ctx.globalCompositeOperation = "multiply";
-        ctx.translate(cx, cy);
-        ctx.rotate((slot.rotate * Math.PI) / 180);
-        ctx.drawImage(img, -drawW / 2, -drawH / 2, drawW, drawH);
-        ctx.restore();
-      }
+      const img = await loadImage(cut.url);
+      const drawW = drawH * (img.naturalWidth / img.naturalHeight);
+      const prominence = Math.min(1, slot.heightPct / BASE_MAX_HEIGHT);
+      const opacity = 0.22 + 0.24 * prominence;
+      // Contact shadow first, then the product on top.
+      drawContactShadow(
+        ctx,
+        cx,
+        cy + drawH / 2,
+        drawW,
+        drawH,
+        cut.footprint,
+        opacity,
+      );
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate((slot.rotate * Math.PI) / 180);
+      ctx.drawImage(img, -drawW / 2, -drawH / 2, drawW, drawH);
+      ctx.restore();
     }
 
     const blob = await new Promise<Blob | null>((resolve) =>
