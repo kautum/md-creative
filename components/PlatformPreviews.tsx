@@ -45,7 +45,7 @@ function SceneComposite({
   return (
     <div
       className="absolute inset-0 overflow-hidden"
-      style={{ isolation: "isolate", backgroundColor: "var(--skeleton)" }}
+      style={{ isolation: "isolate", backgroundColor: "var(--bark)" }}
     >
       {imageUrl ? (
         <>
@@ -59,7 +59,7 @@ function SceneComposite({
       ) : (
         <div
           className="absolute inset-0 animate-pulse"
-          style={{ backgroundColor: "var(--skeleton)" }}
+          style={{ backgroundColor: "var(--bark)" }}
         />
       )}
     </div>
@@ -74,8 +74,8 @@ function Avatar({ size }: { size: number }) {
       style={{
         width: size,
         height: size,
-        backgroundColor: "var(--accent)",
-        color: "#fff",
+        backgroundColor: "var(--cream)",
+        color: "var(--walnut)",
         fontSize: size * 0.42,
         letterSpacing: "0.02em",
       }}
@@ -104,10 +104,9 @@ function InstagramPhone({
       style={{
         aspectRatio: "9 / 19",
         borderRadius: "2.8rem",
-        border: "8px solid #d0d0d0",
+        border: "8px solid var(--cork)",
         backgroundColor: "#f0f0f0",
-        boxShadow: "0 40px 80px rgba(0,0,0,0.5)",
-      }}
+              }}
     >
       <div
         className="relative flex h-full w-full flex-col overflow-hidden bg-white text-black"
@@ -237,8 +236,7 @@ function TikTokPhone({
         borderRadius: "2.8rem",
         border: "8px solid #111",
         backgroundColor: "#1a1a1a",
-        boxShadow: "0 40px 80px rgba(0,0,0,0.5)",
-      }}
+              }}
     >
       <div
         className="relative h-full w-full overflow-hidden"
@@ -300,7 +298,7 @@ function TikTokPhone({
             <Avatar size={40} />
             <span
               className="absolute -bottom-1.5 left-1/2 flex h-4 w-4 -translate-x-1/2 items-center justify-center rounded-full"
-              style={{ backgroundColor: "var(--accent)" }}
+              style={{ backgroundColor: "#fe2c55" }}
             >
               <Plus size={11} strokeWidth={3} />
             </span>
@@ -361,7 +359,7 @@ function TikTokPhone({
               width: 42,
               height: 28,
               borderRadius: 8,
-              backgroundColor: "var(--accent)",
+              backgroundColor: "#fe2c55",
               color: "#fff",
             }}
           >
@@ -402,58 +400,23 @@ export default function PlatformPreviews({
   isRevealing,
 }: PlatformPreviewsProps) {
   return (
-    <section
-      className="w-full"
-      style={{ backgroundColor: "var(--bg-dark)" }}
+    <motion.div
+      className="flex flex-col items-center justify-center gap-12 md:flex-row md:gap-16"
+      style={{ perspective: "1200px" }}
+      initial={{ opacity: 0, y: 40 }}
+      animate={{ opacity: isRevealing ? 1 : 0, y: isRevealing ? 0 : 40 }}
+      transition={{ duration: 0.6, ease: "easeOut", delay: 0.1 }}
     >
-      <div className="mx-auto max-w-5xl px-6 sm:px-10 py-20">
-        {/* section label */}
-        <div className="flex items-center justify-center gap-2.5">
-          <span
-            aria-hidden
-            className="inline-block h-2 w-2 rounded-full"
-            style={{ backgroundColor: "var(--accent)" }}
-          />
-          <span
-            className="font-heading uppercase"
-            style={{
-              color: "rgba(255,255,255,0.6)",
-              fontSize: "0.8rem",
-              letterSpacing: "0.34em",
-            }}
-          >
-            How It Lands
-          </span>
-        </div>
-        <p
-          className="mx-auto mt-3 max-w-md text-center"
-          style={{ color: "rgba(255,255,255,0.4)", fontSize: "0.8rem" }}
-        >
-          The same campaign, in the feeds it was built for.
-        </p>
-
-        <motion.div
-          className="mt-14 flex flex-col items-center justify-center gap-12 md:flex-row md:gap-16"
-          style={{ perspective: "1200px" }}
-          initial={{ opacity: 0, y: 40 }}
-          animate={{
-            opacity: isRevealing ? 1 : 0,
-            y: isRevealing ? 0 : 40,
-          }}
-          transition={{ duration: 0.6, ease: "easeOut", delay: 0.1 }}
-        >
-          <InstagramPhone
-            products={products}
-            copyResult={copyResult}
-            imageUrl={imageUrl}
-          />
-          <TikTokPhone
-            products={products}
-            copyResult={copyResult}
-            imageUrl={imageUrl}
-          />
-        </motion.div>
-      </div>
-    </section>
+      <InstagramPhone
+        products={products}
+        copyResult={copyResult}
+        imageUrl={imageUrl}
+      />
+      <TikTokPhone
+        products={products}
+        copyResult={copyResult}
+        imageUrl={imageUrl}
+      />
+    </motion.div>
   );
 }

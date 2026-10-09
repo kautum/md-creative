@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 
+const MAX_SCENE_CHARS = 1200;
+
 interface GenerateImageRequest {
   sceneDescription: string;
   productName: string;
@@ -24,6 +26,13 @@ export async function POST(request: Request) {
   if (!sceneDescription || typeof sceneDescription !== "string") {
     return NextResponse.json(
       { error: "Missing required field: sceneDescription is required." },
+      { status: 400 },
+    );
+  }
+  // The prompt rides in the URL path; very long ones get rejected upstream.
+  if (sceneDescription.length > MAX_SCENE_CHARS) {
+    return NextResponse.json(
+      { error: `sceneDescription must be under ${MAX_SCENE_CHARS} characters.` },
       { status: 400 },
     );
   }

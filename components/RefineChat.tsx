@@ -1,34 +1,37 @@
 "use client";
 
 import { useState } from "react";
-import { motion } from "framer-motion";
 import type { Product, GeneratedCopy } from "@/lib/products";
 
 interface RefineChatProps {
   products: Product[];
   vibe: string;
+  hairConcern: string | null;
   currentCopy: GeneratedCopy;
   onRefined: (newCopy: GeneratedCopy) => void;
 }
 
+const MAX_CHARS = 300; // mirrors the API's limit
+const SUGGESTIONS = ["Make it punchier", "More British", "Cut the caption in half"];
+
 export default function RefineChat({
   products,
   vibe,
+  hairConcern,
   currentCopy,
   onRefined,
 }: RefineChatProps) {
   const [input, setInput] = useState("");
-  const [history, setHistory] = useState<string[]>([]);
+  const [applied, setApplied] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const submit = async () => {
-    const request = input.trim();
+  const submit = async (text: string) => {
+    const request = text.trim();
     if (!request || loading) return;
 
     setLoading(true);
     setError(null);
-
     try {
       const res = await fetch("/api/generate-copy", {
         method: "POST",
@@ -36,19 +39,18 @@ export default function RefineChat({
         body: JSON.stringify({
           productIds: products.map((p) => p.id),
           vibe,
+          hairConcern: hairConcern ?? undefined,
           mode: "refine",
           existingCopy: currentCopy,
           refineRequest: request,
         }),
       });
-
       const data = await res.json();
       if (!res.ok) {
         throw new Error(data?.error ?? `Request failed (${res.status}).`);
       }
-
       onRefined(data as GeneratedCopy);
-      setHistory((h) => [request, ...h].slice(0, 5));
+      setApplied((h) => [request, ...h].slice(0, 5));
       setInput("");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Refinement failed.");
@@ -58,75 +60,66 @@ export default function RefineChat({
   };
 
   return (
-    <motion.div
-      className="flex flex-col gap-4"
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.35, ease: "easeOut" }}
-    >
-      <span
-        className="font-heading text-xs font-medium uppercase tracking-[0.25em]"
-        style={{ color: "var(--text-muted)" }}
+    <div className="flex flex-col gap-5">
+      <span className="label">Refine the copy</span>
+      <form
+        className="relative"
+        onSubmit={(e) => {
+          e.preventDefault();
+          void submit(input);
+        }}
       >
-        Refine
-      </span>
-
-      {history.length > 0 && (
-        <ul className="flex flex-col gap-2">
-          {history.map((h, i) => (
+        <input
+          type="text"
+          value={input}
+          maxLength={MAX_CHARS}
+          onChange={(e) => setInput(e.target.value)}
+          disabled={loading}
+          aria-label="Refine request"
+          placeholder="Tell it what to change…"
+          className="input-line pr-24 disabled:opacity-50"
+        />
+        <button
+          type="submit"
+          disabled={loading || input.trim() === ""}
+          className="label absolute bottom-2.5 right-0 disabled:opacity-40"
+        >
+          {loading ? "Refining…" : "Apply →"}
+        </button>
+      </form>
+      <div className="flex flex-wrap gap-[10px]">
+        {SUGGESTIONS.map((s) => (
+          <button
+            key={s}
+            type="button"
+            className="chip"
+            disabled={loading}
+            onClick={() => void submit(s)}
+          >
+            {s}
+          </button>
+        ))}
+      </div>
+      {error && (
+        <p role="alert" className="body-sm">
+          {error}
+        </p>
+      )}
+      {applied.length > 0 && (
+        <ul className="flex flex-col">
+          {applied.map((h, i) => (
             <li
-              key={i}
-              className="flex items-center justify-between gap-3 px-4 py-2 text-xs"
-              style={{
-                backgroundColor: "var(--bg-surface)",
-                border: "1px solid var(--border)",
-              }}
+              key={`${h}-${i}`}
+              className="rule-dashed flex items-baseline justify-between gap-3 py-2"
             >
-              <span style={{ color: "var(--text-primary)" }}>{h}</span>
-              <span
-                className="shrink-0 text-[10px] uppercase tracking-[0.15em]"
-                style={{ color: "var(--accent)" }}
-              >
-                ✓ Applied
+              <span className="body-sm" style={{ color: "var(--cream-70)" }}>
+                {h}
               </span>
+              <span className="label-sm">Applied</span>
             </li>
           ))}
         </ul>
       )}
-
-      <div className="flex gap-3">
-        <input
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") submit();
-          }}
-          disabled={loading}
-          placeholder={'Try "make it punchier" or "cut the caption in half"'}
-          className="flex-1 px-4 py-3 text-sm focus:outline-none disabled:opacity-50"
-          style={{
-            backgroundColor: "var(--bg-surface)",
-            border: "1px solid var(--border)",
-            color: "var(--text-primary)",
-          }}
-        />
-        <button
-          type="button"
-          onClick={submit}
-          disabled={loading || input.trim() === ""}
-          className="font-heading px-6 py-3 text-xs font-medium uppercase tracking-[0.2em] transition-colors duration-200 disabled:opacity-40"
-          style={{ backgroundColor: "var(--accent)", color: "#FFFFFF" }}
-        >
-          {loading ? "Refining..." : "Send"}
-        </button>
-      </div>
-
-      {error && (
-        <span className="text-xs" style={{ color: "var(--accent)" }}>
-          {error}
-        </span>
-      )}
-    </motion.div>
+    </div>
   );
 }

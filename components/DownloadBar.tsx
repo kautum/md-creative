@@ -1,8 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Download } from "lucide-react";
-import type { GeneratedCopy, Product } from "@/lib/products";
+import { campaignLabel, type GeneratedCopy, type Product } from "@/lib/products";
 import {
   getCompositeLayout,
   BASE_MAX_HEIGHT,
@@ -20,17 +19,9 @@ function slug(name: string): string {
   return name.toLowerCase().replace(/\s+/g, "-");
 }
 
-/** Human label for a selection: name / "A + B" / "FULL RANGE". */
-function campaignLabel(products: Product[]): string {
-  if (products.length === 1) return products[0].name;
-  if (products.length >= 6) return "Full Range";
-  return products.map((p) => p.name).join(" + ");
-}
-
 function fileSlug(products: Product[]): string {
   if (products.length === 1) return slug(products[0].name);
-  if (products.length >= 6) return "full-range";
-  return "bundle";
+  return slug(campaignLabel(products)).replace(/[^a-z0-9-]/g, "");
 }
 
 function triggerDownload(blob: Blob, filename: string) {
@@ -142,7 +133,7 @@ function drawContactShadow(
 async function downloadComposite(
   products: Product[],
   imageUrl: string,
-): Promise<void> {
+): Promise<boolean> {
   const W = 1024;
   const H = 768;
   try {
@@ -212,9 +203,12 @@ async function downloadComposite(
     );
     if (!blob) throw new Error("toBlob returned null");
     triggerDownload(blob, `mdcreative-${fileSlug(products)}-ad-creative.png`);
-  } catch {
-    window.open(imageUrl, "_blank");
-    alert("Save the image from the new tab.");
+    return true;
+  } catch (err) {
+    // A cross-origin scene can taint the canvas; the caller offers the raw
+    // scene instead of pretending the composite saved.
+    console.warn("[download] composite failed:", err);
+    return false;
   }
 }
 
@@ -224,10 +218,12 @@ export default function DownloadBar({
   imageUrl,
 }: DownloadBarProps) {
   const [busy, setBusy] = useState(false);
+  const [fallbackUrl, setFallbackUrl] = useState<string | null>(null);
 
   const handleDownload = async () => {
     if (busy) return;
     setBusy(true);
+    setFallbackUrl(null);
     try {
       const text = buildCampaignText(products, copyResult);
       triggerDownload(
@@ -236,7 +232,8 @@ export default function DownloadBar({
       );
       if (imageUrl) {
         await new Promise((r) => setTimeout(r, 250));
-        await downloadComposite(products, imageUrl);
+        const ok = await downloadComposite(products, imageUrl);
+        if (!ok) setFallbackUrl(imageUrl);
       }
     } finally {
       setBusy(false);
@@ -244,45 +241,31 @@ export default function DownloadBar({
   };
 
   return (
-    <section className="w-full">
-      <div className="mx-auto max-w-5xl px-6 sm:px-10 py-12">
-        <div
-          className="flex flex-col gap-5 p-7 sm:flex-row sm:items-center sm:justify-between"
-          style={{
-            backgroundColor: "var(--bg-surface)",
-            border: "1px solid var(--border)",
-          }}
-        >
-          <div className="flex flex-col gap-1.5">
-            <span
-              className="font-heading uppercase"
-              style={{
-                color: "var(--text-muted)",
-                fontSize: "0.95rem",
-                letterSpacing: "0.22em",
-              }}
-            >
-              Campaign Pack
-            </span>
-            <span
-              style={{ color: "var(--text-muted)", fontSize: "0.8rem" }}
-            >
-              All copy + ad creative, ready to use.
-            </span>
-          </div>
-
-          <button
-            type="button"
-            onClick={handleDownload}
-            disabled={busy}
-            className="flex items-center justify-center gap-2.5 rounded-sm px-7 py-4 text-xs font-medium uppercase tracking-[0.22em] transition-opacity disabled:opacity-60"
-            style={{ backgroundColor: "var(--accent)", color: "#fff" }}
-          >
-            <Download size={15} strokeWidth={2.2} />
-            {busy ? "Preparing…" : "Download Pack"}
-          </button>
-        </div>
+    <div className="card flex flex-col gap-6 p-6">
+      <div className="flex flex-col gap-3">
+        <span className="label">Campaign pack</span>
+        <p className="body-sm" style={{ color: "var(--cream-70)" }}>
+          Every line of copy as a text file, plus the ad creative as a 1024×768
+          PNG with the product composited in.
+        </p>
       </div>
-    </section>
+      <button
+        type="button"
+        onClick={handleDownload}
+        disabled={busy}
+        className="btn-filled self-start"
+      >
+        {busy ? "Preparing…" : "Download pack ↓"}
+      </button>
+      {fallbackUrl && (
+        <p role="alert" className="body-sm">
+          The copy saved, but the browser blocked the composite.{" "}
+          <a href={fallbackUrl} target="_blank" rel="noreferrer" className="link">
+            Open the scene
+          </a>{" "}
+          to save it directly.
+        </p>
+      )}
+    </div>
   );
 }

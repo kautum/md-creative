@@ -1,44 +1,243 @@
 @import "tailwindcss";
 
-/* MD Creative — light mdlondon theme (warm off-white body, slate-green dark) */
+/* MD Creative 2.0 — "darkroom product editorial" (designs/DESIGN (3).md).
+   A lone object in warm darkness; cream type is the only decoration.
+   Two surfaces (walnut → bark), hairline cork borders, no shadows. Ember is
+   editorial credit only — never a button. */
 :root {
-  --bg-primary: #f7f6f4; /* warm off-white page body — slightly cream, not stark */
-  --bg-surface: #ffffff; /* pure white for cards */
-  --bg-surface-2: #f0efed; /* warm white for nested/secondary cards */
-  /* mdlondon's real header/nav is a dark slate green-grey, NOT near-black —
-     observed on mdlondon.com (A0). Used for the masthead + the dark band. */
-  --bg-dark: #36423d;
-  --border: rgba(0, 0, 0, 0.09); /* subtle dark border on white */
-  --border-strong: rgba(0, 0, 0, 0.18);
-  --text-primary: #111111; /* near-black body text */
-  --text-muted: #6e6e6e; /* readable muted grey on white (most components use this) */
-  --text-secondary: #444444; /* stronger secondary text */
-  --text-dim: #888888; /* dim labels */
-  --text-on-dark: #ffffff; /* text ON the dark masthead/band only */
-  --accent: #ff5c00; /* orange CTA — reads close to mdlondon's coral mark */
-  --accent-hover: #e05000;
-  --accent-teal: #1e4d4d; /* teal as accent only, not canvas */
-  --skeleton: #e8e8e6; /* warm grey skeleton loaders on white */
+  --cream: #ffedd7;
+  --walnut: #100904;
+  --bark: #382416;
+  --cork: #40372e;
+  --driftwood: #6c5f51;
+  --ember: #dc5000;
+
+  /* Cream at reduced strength for secondary text — still warm, never grey. */
+  --cream-70: rgba(255, 237, 215, 0.7);
+  --cream-50: rgba(255, 237, 215, 0.5);
+  --cream-08: rgba(255, 237, 215, 0.08);
+
+  --radius-card: 12px;
+  --radius-ghost: 22.5px;
+  --radius-pill: 36px;
 }
 
-/* Hanken Grotesk is forced as the document-wide default here: every element
-   inherits it from <body> unless it opts into the heading font below. */
+@theme inline {
+  --color-cream: var(--cream);
+  --color-walnut: var(--walnut);
+  --color-bark: var(--bark);
+  --color-cork: var(--cork);
+  --color-driftwood: var(--driftwood);
+  --color-ember: var(--ember);
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+}
+
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 72px;
+}
+
 body {
-  font-family: var(--font-body), system-ui, sans-serif;
-  background-color: var(--bg-primary);
-  color: var(--text-primary);
+  background-color: var(--walnut);
+  color: var(--cream);
+  font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  font-feature-settings: "ss01" on;
+  font-weight: 500;
 }
 
-/* Jost on all headings + any element opting in via .font-heading (labels). */
-h1,
-h2,
-h3,
-h4,
-h5,
-h6,
-.font-heading {
-  font-family: var(--font-heading), system-ui, sans-serif;
+::selection {
+  background: var(--cream);
+  color: var(--walnut);
 }
+
+:focus-visible {
+  outline: 1px dashed var(--cream);
+  outline-offset: 3px;
+}
+
+/* ── Type: two voices only ───────────────────────────────────────────── */
+
+/* UPPERCASE 500 — labels, nav, buttons, headings. */
+.label {
+  font-size: 12px;
+  line-height: 1.2;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+.label-sm {
+  font-size: 10px;
+  line-height: 1.2;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+.heading {
+  font-size: clamp(30px, 3.4vw, 41px);
+  line-height: 0.9;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+.display {
+  font-size: clamp(64px, 12vw, 176px);
+  line-height: 0.9;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+/* Mixed-case 400 — the only conversational voice. */
+.body-voice {
+  font-size: clamp(20px, 2vw, 29px);
+  line-height: 1.26;
+  font-weight: 400;
+  text-transform: none;
+}
+.body-sm {
+  font-size: 15px;
+  line-height: 1.45;
+  font-weight: 400;
+  text-transform: none;
+}
+
+/* Legal micro-copy — deliberately system type: "this is compliance". */
+.legal {
+  font-family: Arial, system-ui, sans-serif;
+  font-size: 10px;
+  line-height: 1.2;
+  font-weight: 500;
+  text-transform: uppercase;
+  color: var(--cream-50);
+}
+
+.credit {
+  color: var(--ember);
+}
+
+/* ── Structure ───────────────────────────────────────────────────────── */
+
+.rule-dashed {
+  border: 0;
+  border-top: 1px dashed var(--cork);
+}
+
+.card {
+  border: 1px solid var(--cork);
+  border-radius: var(--radius-card);
+  background: transparent;
+}
+
+/* ── Controls ────────────────────────────────────────────────────────── */
+
+/* The one filled CTA per section. */
+.btn-filled {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 14px 24px;
+  border-radius: var(--radius-pill);
+  background: var(--bark);
+  color: var(--cream);
+  border: 1px solid var(--bark);
+  font-size: 14px;
+  font-weight: 500;
+  text-transform: uppercase;
+  transition: border-color 0.2s ease;
+}
+.btn-filled:hover:not(:disabled) {
+  border-color: var(--cream);
+}
+.btn-filled:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 7.5px 16px;
+  border-radius: var(--radius-ghost);
+  border: 1px solid var(--cream);
+  background: transparent;
+  color: var(--cream);
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: uppercase;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease,
+    border-color 0.2s ease;
+}
+.btn-ghost:hover:not(:disabled) {
+  background: var(--cream-08);
+}
+.btn-ghost:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* A choice pill: quiet until chosen, then the inverse. */
+.chip {
+  padding: 7.5px 16px;
+  border-radius: var(--radius-ghost);
+  border: 1px solid var(--cork);
+  color: var(--cream-70);
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: uppercase;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease,
+    border-color 0.2s ease;
+}
+.chip:hover:not(:disabled) {
+  border-color: var(--cream);
+  color: var(--cream);
+}
+.chip[aria-pressed="true"] {
+  background: var(--cream);
+  border-color: var(--cream);
+  color: var(--walnut);
+}
+.chip:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.link {
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: uppercase;
+  color: var(--cream);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  text-decoration-thickness: 1px;
+}
+.link:hover {
+  text-decoration-style: dashed;
+}
+
+/* Underline-only input — no boxes, just a line. */
+.input-line {
+  width: 100%;
+  padding: 10px 2px;
+  border: 0;
+  border-bottom: 1px solid var(--cream);
+  border-radius: 0;
+  background: transparent;
+  color: var(--cream);
+  font-size: 15px;
+  font-weight: 400;
+}
+.input-line::placeholder {
+  color: var(--cream-50);
+}
+.input-line:focus {
+  outline: none;
+  border-bottom-style: dashed;
+}
+
+/* ── Motion ──────────────────────────────────────────────────────────── */
 
 @keyframes fadeInUp {
   from {
@@ -50,7 +249,44 @@ h6,
     transform: none;
   }
 }
-
 .animate-fade-in-up {
   animation: fadeInUp 0.4s ease-out both;
+}
+
+/* The hero object drifts slowly, like it's hanging in the dark. */
+@keyframes drift {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-2deg);
+  }
+  50% {
+    transform: translateY(-14px) rotate(1deg);
+  }
+}
+.animate-drift {
+  animation: drift 9s ease-in-out infinite;
+}
+
+@keyframes breathe {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 0.9;
+  }
+}
+.animate-breathe {
+  animation: breathe 1.8s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  .animate-drift,
+  .animate-breathe,
+  .animate-fade-in-up {
+    animation: none;
+  }
 }

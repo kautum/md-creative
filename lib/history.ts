@@ -7,6 +7,8 @@ export interface HistoryEntry {
   id: string;
   productIds: string[]; // restores the full selection on click
   productNames: string[];
+  label?: string; // campaignLabel() at save time; absent on v1 entries
+
   productImage: string; // first product's image, for the thumbnail
   vibe: string;
   hairConcern: string | null;
@@ -18,7 +20,7 @@ export interface HistoryEntry {
 }
 
 const KEY = "md-creative-history";
-const MAX = 3;
+const MAX = 6;
 
 export function loadHistory(): HistoryEntry[] {
   if (typeof window === "undefined") return [];
@@ -46,6 +48,32 @@ export function pushHistory(
   entry: HistoryEntry,
 ): HistoryEntry[] {
   const next = [entry, ...entries].slice(0, MAX);
+  if (typeof window !== "undefined") {
+    try {
+      window.localStorage.setItem(KEY, JSON.stringify(next));
+    } catch {
+      // storage full / disabled — keep the in-memory list anyway.
+    }
+  }
+  return next;
+}
+
+/** Replace one entry's copy (after a refine) and persist. Returns the new list. */
+export function updateHistoryCopy(
+  entries: HistoryEntry[],
+  id: string,
+  copy: GeneratedCopy,
+): HistoryEntry[] {
+  const next = entries.map((e) =>
+    e.id === id
+      ? {
+          ...e,
+          copy,
+          campaignAngle: copy.campaignAngle,
+          caption: copy.instagramCaption,
+        }
+      : e,
+  );
   if (typeof window !== "undefined") {
     try {
       window.localStorage.setItem(KEY, JSON.stringify(next));

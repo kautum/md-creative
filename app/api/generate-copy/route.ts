@@ -1,5 +1,11 @@
 import { NextResponse } from "next/server";
-import { PRODUCTS, type Product, type GeneratedCopy } from "@/lib/products";
+import {
+  PRODUCTS,
+  VIBES,
+  HAIR_CONCERNS,
+  type Product,
+  type GeneratedCopy,
+} from "@/lib/products";
 import { BRAND_VOICE } from "@/lib/brandVoice";
 import {
   pickRandomStyle,
@@ -9,20 +15,17 @@ import {
 
 export const runtime = "nodejs";
 
-// Groq is OpenAI-compatible, free and fast.
+// Groq is OpenAI-compatible, free and fast. openai/gpt-oss-120b writes the least
+// formulaic copy of the models on the account; it supports JSON mode and keeps
+// its chain-of-thought in a separate `reasoning` field, so `message.content` is
+// clean JSON.
 //
-// NOTE (Task 1): the brief asked for Kimi K2 (moonshotai/kimi-k2-instruct), but
-// that model is NOT provisioned on this Groq key — the /models endpoint lists 17
-// models with no Moonshot/Kimi entry. So we use the strongest *available* model
-// for non-formulaic creative copy: openai/gpt-oss-120b (the largest general
-// model on the account), a genuine step up from Llama 3.3 70B. It supports JSON
-// mode; its chain-of-thought lands in a separate `reasoning` field, so
-// `message.content` is clean JSON.
-//
-// If gpt-oss-120b free-tier rate limits (429s) become a problem during testing,
-// set GROQ_USE_FALLBACK=1 to drop back to Llama 3.3 70B without a code change.
+// Fallback: Groq retired llama-3.3-70b-versatile (absent from /models as of
+// Oct 2026), which silently broke the v1 fallback. gpt-oss-20b is the same
+// family, accepts the same params, and has more rate-limit headroom.
+// Set GROQ_USE_FALLBACK=1 to run on the fallback model without a code change.
 const PRIMARY_MODEL = "openai/gpt-oss-120b";
-const FALLBACK_MODEL = "llama-3.3-70b-versatile"; // higher TPM headroom for 429 fallback
+const FALLBACK_MODEL = "openai/gpt-oss-20b";
 const CHAT_ENDPOINT = "https://api.groq.com/openai/v1/chat/completions";
 
 // One short backoff before a single invisible retry — standard practice, not a
@@ -182,14 +185,20 @@ function buildUserPrompt(
   const bundleBlock =
     n === 1
       ? ""
-      : n >= 6
+      : n === PRODUCTS.length
         ? [
-            "BUNDLE MODE — THE FULL MDLONDON RANGE (6+ products, the complete system):",
+            "BUNDLE MODE — THE FULL MDLONDON RANGE (every product, the complete system):",
             "- campaign_angle and all copy must speak to the complete range / system as a whole. Do NOT enumerate or name individual products.",
             "- Frame it as 'the full mdlondon range', 'the complete system', 'every step, sorted'.",
             "- tiktok_script: keep steps conceptual (the whole routine), not product-by-product.",
           ].join("\n")
-        : [
+        : n >= 5
+          ? [
+              `BUNDLE MODE — a ${n}-piece edit of the mdlondon range (NOT the full range — never call it that):`,
+              "- campaign_angle and all copy must frame these products as one routine. Do NOT enumerate the products in flowing copy.",
+              "- tiktok_script: keep steps conceptual (the whole routine), not product-by-product.",
+            ].join("\n")
+          : [
             "BUNDLE MODE — a routine/kit of multiple products sold as one system:",
             "- campaign_angle MUST tie the products together as a single idea (e.g. 'the complete " +
               vibe +
@@ -251,8 +260,7 @@ function buildUserPrompt(
       "",
       `The user wants this change: "${refineRequest ?? "Improve it."}"`,
       "Rewrite ALL fields applying that change while keeping mdlondon's voice and the guidelines below. Keep every field populated.",
-      "",
-      styleBlock,
+      "Keep scene_for_image_gen exactly as it was — the image has already been generated from it.",
       "",
       guidelines,
       "",
@@ -342,8 +350,9 @@ function normalizeResult(parsed: unknown): CopyResult {
     bestPlatform: asString(obj.bestPlatform),
     ctaRecommendation: asString(obj.ctaRecommendation),
     scene_for_image_gen: asString(obj.scene_for_image_gen),
-    // Set server-side from the forced style pick (POST handler), not the model.
-    visual_style: "",
+    // Set server-side from the forced style pick (POST handler), not the model;
+    // carried through when validating a refine's existingCopy.
+    visual_style: asString(obj.visual_style),
     tiktok_script: normalizeTiktok(obj.tiktok_script),
   };
 }
@@ -402,6 +411,28 @@ async function regenerateScene(
   }
 }
 
+const MAX_REFINE_CHARS = 300;
+
+/** Brand-voice words the copy must never use (BRAND_VOICE.forbidden). */
+function findForbiddenWords(copy: CopyResult): string[] {
+  const text = [
+    copy.instagramCaption,
+    ...copy.adCopy,
+    copy.campaignAngle,
+    copy.ctaRecommendation,
+    copy.tiktok_script.hook,
+    copy.tiktok_script.cta,
+  ]
+    .join(" ")
+    .toLowerCase();
+  return BRAND_VOICE.forbidden.filter((w) => text.includes(w));
+}
+
+/** Reject a request with a 400 and a message safe to show the user. */
+function badRequest(error: string) {
+  return NextResponse.json({ error }, { status: 400 });
+}
+
 export async function POST(request: Request) {
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey || apiKey === "your_groq_api_key_here") {
@@ -415,10 +446,7 @@ export async function POST(request: Request) {
   try {
     body = (await request.json()) as GenerateCopyRequest;
   } catch {
-    return NextResponse.json(
-      { error: "Request body must be valid JSON." },
-      { status: 400 },
-    );
+    return badRequest("Request body must be valid JSON.");
   }
 
   const {
@@ -440,32 +468,49 @@ export async function POST(request: Request) {
         : [];
 
   if (ids.length === 0 || !vibe || (mode !== "generate" && mode !== "refine")) {
-    return NextResponse.json(
-      {
-        error:
-          "Missing required fields: productIds (or productId), vibe and mode ('generate' | 'refine') are required.",
-      },
-      { status: 400 },
+    return badRequest(
+      "Missing required fields: productIds (or productId), vibe and mode ('generate' | 'refine') are required.",
     );
   }
 
-  // Preserve catalogue order and drop unknown ids.
+  // Everything below is interpolated into the prompt, so only known values get
+  // through — an unknown id or vibe is an error, never silently dropped.
+  const unknown = ids.filter((id) => !PRODUCTS.some((p) => p.id === id));
+  if (unknown.length > 0) {
+    return badRequest(`Unknown product id(s): ${unknown.join(", ")}`);
+  }
+  if (!(VIBES as readonly string[]).includes(vibe)) {
+    return badRequest(`Unknown vibe: ${vibe}`);
+  }
+  if (
+    hairConcern !== undefined &&
+    !(HAIR_CONCERNS as readonly string[]).includes(hairConcern)
+  ) {
+    return badRequest(`Unknown hair concern: ${hairConcern}`);
+  }
+
+  // Preserve catalogue order.
   const products = PRODUCTS.filter((p) => ids.includes(p.id));
-  if (products.length === 0) {
-    return NextResponse.json(
-      { error: `No known products in: ${ids.join(", ")}` },
-      { status: 400 },
-    );
-  }
 
-  if (mode === "refine" && !existingCopy) {
-    return NextResponse.json(
-      { error: "Refine mode requires 'existingCopy'." },
-      { status: 400 },
-    );
+  let previous: CopyResult | undefined;
+  if (mode === "refine") {
+    if (typeof refineRequest !== "string" || refineRequest.trim() === "") {
+      return badRequest("Refine mode requires a 'refineRequest'.");
+    }
+    if (refineRequest.length > MAX_REFINE_CHARS) {
+      return badRequest(
+        `Keep the refine request under ${MAX_REFINE_CHARS} characters.`,
+      );
+    }
+    try {
+      previous = normalizeResult(existingCopy);
+    } catch {
+      return badRequest("Refine mode requires a valid 'existingCopy'.");
+    }
   }
 
   // Force a visual-style direction so scenes don't collapse to "bathroom".
+  // Refines keep the original style + scene: the image is already on screen.
   const style = pickRandomStyle();
 
   const userPrompt = buildUserPrompt(
@@ -473,54 +518,85 @@ export async function POST(request: Request) {
     vibe,
     hairConcern,
     mode,
-    existingCopy,
-    refineRequest,
+    previous,
+    refineRequest?.trim(),
     style,
   );
+  const messages = [
+    {
+      role: "system",
+      content: `${BRAND_VOICE.systemPrompt}\n\nBANNED WORDS — never use any of these: ${BRAND_VOICE.forbidden.join(", ")}.`,
+    },
+    { role: "user", content: userPrompt },
+  ];
 
-  let content: string;
-  let modelUsed: ModelUsed;
-  try {
-    const generated = await generateCopyWithFallback(apiKey, [
-      { role: "system", content: BRAND_VOICE.systemPrompt },
-      { role: "user", content: userPrompt },
-    ]);
-    content = generated.content;
-    modelUsed = generated.modelUsed;
-  } catch (err) {
-    // Every model attempt failed — return a human message the frontend already
-    // knows how to display, never the raw provider string.
+  // Up to two passes: a second only if the first came back unparseable or used
+  // a banned brand-voice word. A second off-brand result is accepted (and
+  // logged) rather than failing the whole campaign.
+  let result: CopyResult | null = null;
+  let modelUsed: ModelUsed = "primary";
+  for (let pass = 1; pass <= 2 && !result; pass++) {
+    let content: string;
+    try {
+      const generated = await generateCopyWithFallback(apiKey, messages);
+      content = generated.content;
+      modelUsed = generated.modelUsed;
+    } catch (err) {
+      // Every model attempt failed — a human message, never the raw provider string.
+      return NextResponse.json(
+        {
+          error:
+            err instanceof CopyGenerationError
+              ? err.message
+              : "Copy generation failed. Please try again.",
+        },
+        { status: 503 },
+      );
+    }
+
+    let parsed: CopyResult;
+    try {
+      parsed = normalizeResult(JSON.parse(extractJson(content)));
+    } catch (err) {
+      console.warn(
+        `[generate-copy] pass ${pass}: unparseable model output: ${err instanceof Error ? err.message : String(err)}`,
+      );
+      continue;
+    }
+
+    const banned = findForbiddenWords(parsed);
+    if (banned.length > 0) {
+      console.warn(
+        `[generate-copy] pass ${pass} used banned words: ${banned.join(", ")}`,
+      );
+      if (pass === 1) continue;
+    }
+    result = parsed;
+  }
+
+  if (!result) {
     return NextResponse.json(
       {
         error:
-          err instanceof CopyGenerationError
-            ? err.message
-            : "Copy generation failed. Please try again.",
-      },
-      { status: 503 },
-    );
-  }
-
-  let result: CopyResult;
-  try {
-    result = normalizeResult(JSON.parse(extractJson(content)));
-  } catch (err) {
-    return NextResponse.json(
-      {
-        error: "Could not parse copy from the model output.",
-        detail: err instanceof Error ? err.message : String(err),
+          "The writing model returned something unreadable — please try again.",
       },
       { status: 502 },
     );
   }
 
-  // Stamp the forced style so the frontend can surface it ("Style: …").
-  result.visual_style = style.name;
-  // Tell the frontend which model produced this so it can show a subtle note.
   result.model_used = modelUsed;
 
-  // Cheap validator (Task 2): if the scene fell back to a banned literal
-  // location, make exactly one focused retry. If it still fails, proceed anyway.
+  if (previous) {
+    result.scene_for_image_gen = previous.scene_for_image_gen;
+    result.visual_style = previous.visual_style;
+    return NextResponse.json(result);
+  }
+
+  // Stamp the forced style so the frontend can surface it ("Style: …").
+  result.visual_style = style.name;
+
+  // Cheap validator: if the scene fell back to a banned literal location, make
+  // exactly one focused retry. If it still fails, proceed anyway.
   if (sceneHasBannedWords(result.scene_for_image_gen)) {
     const sceneModel =
       modelUsed === "fallback" || process.env.GROQ_USE_FALLBACK === "1"

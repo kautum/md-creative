@@ -1,10 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { motion } from "framer-motion";
-import confetti from "canvas-confetti";
 import {
   PRODUCTS,
+  campaignLabel,
   type Product,
   type GeneratedCopy,
   type GeneratedImage,
@@ -12,6 +11,7 @@ import {
 import {
   loadHistory,
   pushHistory,
+  updateHistoryCopy,
   clearHistory,
   type HistoryEntry,
 } from "@/lib/history";
@@ -22,18 +22,21 @@ import RefineChat from "@/components/RefineChat";
 import PlatformPreviews from "@/components/PlatformPreviews";
 import DownloadBar from "@/components/DownloadBar";
 import HistoryStrip from "@/components/HistoryStrip";
+import ProductImage from "@/components/ProductImage";
 
 // Cycled below the Generate button while a generation is in flight.
 const GENERATION_STEPS = [
-  "✦ Reading the brief...",
-  "✦ Finding the voice...",
-  "✦ Crafting the caption...",
-  "✦ Writing ad variants...",
-  "✦ Composing the scene...",
-  "✦ Finishing touches...",
+  "Reading the brief —",
+  "Finding the voice —",
+  "Crafting the caption —",
+  "Writing ad variants —",
+  "Composing the scene —",
+  "Finishing touches —",
 ];
 
 const ALL_IDS = PRODUCTS.map((p) => p.id);
+// The object shown in the hero before anything is selected.
+const HERO_DEFAULT = PRODUCTS[0];
 
 export default function Home() {
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
@@ -44,6 +47,9 @@ export default function Home() {
 
   const [copyResult, setCopyResult] = useState<GeneratedCopy | null>(null);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
+  // The scene that actually painted (a retry changes the seed). Previews and
+  // the download use this, so they never show a URL that failed.
+  const [sceneUrl, setSceneUrl] = useState<string | null>(null);
   const [copyLoading, setCopyLoading] = useState(false);
   const [imageLoading, setImageLoading] = useState(false);
   const [hasGenerated, setHasGenerated] = useState(false);
@@ -51,6 +57,8 @@ export default function Home() {
   const [stepIndex, setStepIndex] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
+  // The history entry the on-screen campaign belongs to, so refines update it.
+  const [activeHistoryId, setActiveHistoryId] = useState<string | null>(null);
 
   // Monotonic id for the current generation. Bumped on every new generation AND
   // whenever the selection changes / a campaign is restored, so an in-flight
@@ -88,9 +96,11 @@ export default function Home() {
     genIdRef.current += 1;
     setCopyResult(null);
     setImageUrl(null);
+    setSceneUrl(null);
     setHasGenerated(false);
     setIsRevealing(false);
     setError(null);
+    setActiveHistoryId(null);
   };
 
   const handleToggleProduct = (p: Product) => {
@@ -163,6 +173,7 @@ export default function Home() {
       if (!res.ok) throw new Error(data?.error ?? `Image failed (${res.status}).`);
       const url = (data as GeneratedImage).imageUrl;
       setImageUrl(url);
+      setSceneUrl(null);
       return url;
     } catch (err) {
       if (genIdRef.current === genId) {
@@ -174,14 +185,6 @@ export default function Home() {
     }
   };
 
-  // Regenerate just the copy — same inputs; the typewriter restarts on the new
-  // caption (keyed by text in OutputPanel). The image is left untouched.
-  const handleRegenerateCopy = () => {
-    if (selectedProducts.length === 0 || !selectedVibe || copyLoading) return;
-    const myId = (genIdRef.current += 1);
-    void runCopy(selectedProducts, selectedVibe, selectedHairConcern, myId);
-  };
-
   const handleGenerate = () => {
     if (selectedProducts.length === 0 || !selectedVibe || isGenerating) return;
     const products = selectedProducts;
@@ -191,6 +194,10 @@ export default function Home() {
     setHasGenerated(true);
     setIsRevealing(false);
     setStepIndex(0);
+    setActiveHistoryId(null);
+    document
+      .getElementById("campaign")
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
     // Sequential: copy first (typewriter kicks in fast), then the scene Groq
     // purpose-built for this campaign. Reveal once both settle. Each await is
     // followed by a freshness check so a selection change mid-flight discards
@@ -210,17 +217,11 @@ export default function Home() {
       if (genIdRef.current !== myId) return;
       setIsRevealing(true);
       if (copy) {
-        confetti({
-          particleCount: 80,
-          spread: 60,
-          origin: { y: 0.6 },
-          colors: ["#FF5C00", "#36423D", "#E0A155"],
-          disableForReducedMotion: true,
-        });
         const entry: HistoryEntry = {
           id: Date.now().toString(),
           productIds: products.map((p) => p.id),
           productNames: products.map((p) => p.name),
+          label: campaignLabel(products),
           productImage: products[0].imageUrl,
           vibe,
           hairConcern: selectedHairConcern,
@@ -231,6 +232,7 @@ export default function Home() {
           timestamp: Date.now(),
         };
         setHistory((prev) => pushHistory(prev, entry));
+        setActiveHistoryId(entry.id);
       }
     })();
   };
@@ -249,9 +251,14 @@ export default function Home() {
     setSelectedHairConcern(entry.hairConcern);
     setCopyResult(entry.copy);
     setImageUrl(entry.imageUrl);
+    setSceneUrl(null);
     setError(null);
     setHasGenerated(true);
     setIsRevealing(true);
+    setActiveHistoryId(entry.id);
+    document
+      .getElementById("campaign")
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
   const handleClearHistory = () => {
@@ -259,132 +266,198 @@ export default function Home() {
     setHistory([]);
   };
 
+  const handleRefined = (copy: GeneratedCopy) => {
+    setCopyResult(copy);
+    if (activeHistoryId) {
+      setHistory((prev) => updateHistoryCopy(prev, activeHistoryId, copy));
+    }
+  };
+
   const hasSelection = selectedProducts.length > 0;
   const isBundle = selectedProducts.length >= 2;
+  const heroProduct = selectedProducts[0] ?? HERO_DEFAULT;
+  const showCampaign = hasGenerated && hasSelection;
+  const canGenerate = hasSelection && !!selectedVibe && !isGenerating;
+  const generateHint = !hasSelection
+    ? "Pick at least one product above"
+    : !selectedVibe
+      ? "Choose a vibe"
+      : isGenerating
+        ? generationStep
+        : `${campaignLabel(selectedProducts)} · ${selectedVibe}${selectedHairConcern ? ` · ${selectedHairConcern}` : ""}`;
 
   return (
-    <div className="flex flex-col">
-      <div className="mx-auto w-full max-w-5xl px-6 sm:px-10 py-12 flex flex-col gap-14">
-        <header className="flex flex-col gap-3">
-          <h1
-            className="font-heading font-light tracking-[0.05em]"
+    <div id="top" className="flex flex-col">
+      {/* ── HERO — the object in the dark ─────────────────────────────── */}
+      <section className="relative flex min-h-[100svh] flex-col justify-between px-4 pb-6 pt-24 sm:px-6 lg:pr-12">
+        <div className="grid flex-1 grid-cols-1 items-center gap-10 lg:grid-cols-12 lg:gap-[18px]">
+          {/* Type sits above the object so the wordmark always reads whole. */}
+          <div className="pointer-events-none relative z-10 flex flex-col gap-4 lg:col-span-4 lg:self-start lg:pt-[8vh]">
+            <span className="label">Great hair, made easy — campaign studio</span>
+            <h1 className="display">
+              MD
+              <br />
+              Creative.
+            </h1>
+          </div>
+
+          <div className="relative flex h-[44vh] items-center justify-center lg:col-span-4 lg:h-[64vh]">
+            <div
+              aria-hidden
+              className="absolute inset-0"
+              style={{
+                // Warm rim light from the upper right, as the reference lights its object.
+                background:
+                  "radial-gradient(ellipse 55% 50% at 62% 42%, rgba(220,80,0,0.16), rgba(56,36,22,0.35) 45%, rgba(16,9,4,0) 75%)",
+              }}
+            />
+            <div className="animate-drift relative h-full w-full">
+              <ProductImage
+                key={heroProduct.id}
+                product={heroProduct}
+                className="animate-fade-in-up h-full w-full"
+              />
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-8 lg:col-span-4 lg:self-end lg:pb-[6vh]">
+            <p className="body-voice">
+              One product in, a whole campaign out. Caption, paid ads, a TikTok
+              script and a scene to stage it in, written in mdlondon&rsquo;s voice.
+            </p>
+            <a href="#range" className="btn-ghost self-start">
+              Start with the range ↓
+            </a>
+          </div>
+        </div>
+
+        {/* Info card, bottom-left. */}
+        <div className="mt-10 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div
+            className="flex max-w-sm flex-col gap-3 p-5"
             style={{
-              color: "var(--text-primary)",
-              fontSize: "clamp(2rem, 4vw, 3.5rem)",
-              lineHeight: 1.1,
+              borderRadius: "var(--radius-card)",
+              background: "rgba(56,36,22,0.55)",
             }}
           >
-            Social Content Generator
-          </h1>
-          <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
-            Pick one product — or a few for a bundle — set the vibe, and generate
-            on-brand captions, ad copy and a lifestyle scene.
-          </p>
-          <button
-            type="button"
-            onClick={handleSelectAll}
-            className="self-start text-[11px] uppercase tracking-[0.18em] transition-colors"
-            style={{ color: "var(--text-muted)" }}
-            onMouseEnter={(e) =>
-              (e.currentTarget.style.color = "var(--accent)")
-            }
-            onMouseLeave={(e) =>
-              (e.currentTarget.style.color = "var(--text-muted)")
-            }
-          >
+            <span className="label">
+              <span className="credit">Built by</span> Kautum Krishnan, for
+              mdlondon.
+            </span>
+            <hr className="rule-dashed" style={{ borderColor: "var(--driftwood)" }} />
+            <p className="body-sm" style={{ color: "var(--cream-70)", fontSize: 13 }}>
+              Groq writes the copy. Pollinations paints the scene. The real
+              product is cut out and composited in your browser.
+            </p>
+          </div>
+          <span className="label" style={{ color: "var(--cream-50)" }}>
+            {heroProduct.name} — £{heroProduct.price}
+          </span>
+        </div>
+      </section>
+
+      {/* ── 01 RANGE ─────────────────────────────────────────────────── */}
+      <section id="range" className={SECTION}>
+        <SectionHead index="01" title="Pick the object.">
+          <button type="button" onClick={handleSelectAll} className="link">
             {allSelected ? "Clear selection" : `Select all ${ALL_IDS.length}`}
           </button>
-        </header>
-
-        {history.length > 0 && (
-          <HistoryStrip
-            entries={history}
-            onRestore={handleRestoreCampaign}
-            onClear={handleClearHistory}
-          />
-        )}
-
-        {!hasSelection && (
-          <p
-            className="text-xs uppercase tracking-[0.2em]"
-            style={{ color: "var(--text-muted)" }}
-          >
-            Select a product to get started.
-          </p>
-        )}
-
+        </SectionHead>
         <ProductGrid
           selectedIds={selectedProductIds}
           onToggle={handleToggleProduct}
         />
+      </section>
 
-        {hasSelection && (
-          <VibePicker
-            selectedVibe={selectedVibe}
-            onSelectVibe={setSelectedVibe}
-            selectedConcern={selectedHairConcern}
-            onSelectConcern={(c) => setSelectedHairConcern(c === "" ? null : c)}
-          />
-        )}
-
-        {hasSelection && selectedVibe && (
-          <div className="flex flex-col items-center gap-3">
-            <motion.button
-              type="button"
-              onClick={handleGenerate}
-              disabled={isGenerating}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{
-                opacity: 1,
-                y: 0,
-                scale: isGenerating ? 1 : [1, 1.02, 1],
-              }}
-              whileHover={isGenerating ? undefined : { scale: 1.03 }}
-              transition={{
-                opacity: { duration: 0.3 },
-                y: { duration: 0.3 },
-                scale: isGenerating
-                  ? { duration: 0.2 }
-                  : { duration: 2, repeat: Infinity, ease: "easeInOut" },
-              }}
-              className="font-heading w-full rounded-sm py-4 text-sm font-medium uppercase tracking-[0.3em] disabled:opacity-50"
-              style={{ backgroundColor: "var(--accent)", color: "#FFFFFF" }}
-            >
-              {isGenerating
-                ? "Generating..."
-                : isBundle
-                  ? "Generate Bundle Campaign"
-                  : "Generate Content"}
-            </motion.button>
-            <p
-              className="h-4 text-[11px] uppercase transition-opacity duration-500"
-              style={{
-                letterSpacing: "0.12em",
-                color: "#FF5C00",
-                opacity: isGenerating ? 1 : 0,
-              }}
-            >
-              <span key={generationStep} className="animate-fade-in-up">
-                {generationStep}
-              </span>
+      {/* ── 02 BRIEF ─────────────────────────────────────────────────── */}
+      <section id="brief" className={SECTION}>
+        <SectionHead index="02" title="Set the brief." />
+        <div className="grid grid-cols-1 gap-12 lg:grid-cols-12 lg:gap-[18px]">
+          <div className="flex flex-col gap-8 lg:col-span-5">
+            <p className="body-voice" style={{ color: "var(--cream-70)" }}>
+              {hasSelection ? (
+                <>
+                  You&rsquo;re writing for{" "}
+                  <span style={{ color: "var(--cream)" }}>
+                    {campaignLabel(selectedProducts)}
+                  </span>
+                  .{" "}
+                  {isBundle
+                    ? "One idea, framed as a routine — not a list."
+                    : selectedProducts[0].tagline}
+                </>
+              ) : (
+                "Nothing selected yet. Pick one product for a hero campaign, or a few for a bundle."
+              )}
             </p>
+            {history.length > 0 && (
+              <HistoryStrip
+                entries={history}
+                activeId={activeHistoryId}
+                onRestore={handleRestoreCampaign}
+                onClear={handleClearHistory}
+              />
+            )}
           </div>
-        )}
-
-        {error && (
-          <div
-            className="px-4 py-3 text-sm"
-            style={{
-              backgroundColor: "var(--bg-surface)",
-              border: "1px solid var(--accent)",
-              color: "var(--text-primary)",
-            }}
-          >
-            {error}
+          <div className="flex flex-col gap-10 lg:col-span-6 lg:col-start-7">
+            <VibePicker
+              selectedVibe={selectedVibe}
+              onSelectVibe={setSelectedVibe}
+              selectedConcern={selectedHairConcern}
+              onSelectConcern={setSelectedHairConcern}
+              disabled={isGenerating}
+            />
+            <hr className="rule-dashed" />
+            <div className="flex flex-col gap-4">
+              <button
+                type="button"
+                onClick={handleGenerate}
+                disabled={!canGenerate}
+                className="btn-filled self-start"
+              >
+                {isGenerating
+                  ? "Generating…"
+                  : isBundle
+                    ? "Generate bundle campaign →"
+                    : "Generate campaign →"}
+              </button>
+              <span
+                key={generateHint}
+                aria-live="polite"
+                className="label animate-fade-in-up"
+                style={{ color: "var(--cream-50)" }}
+              >
+                {generateHint}
+              </span>
+            </div>
+            {error && (
+              <div role="alert" className="card flex flex-col gap-2 p-5">
+                <span className="label">Something went wrong</span>
+                <p className="body-sm" style={{ color: "var(--cream-70)" }}>
+                  {error}
+                </p>
+              </div>
+            )}
           </div>
-        )}
+        </div>
+      </section>
 
-        {hasGenerated && hasSelection && (
+      {/* ── 03 CAMPAIGN ──────────────────────────────────────────────── */}
+      <section id="campaign" className={SECTION}>
+        <SectionHead
+          index="03"
+          title={
+            showCampaign ? `${campaignLabel(selectedProducts)}.` : "The campaign."
+          }
+        >
+          {showCampaign && selectedVibe && (
+            <span className="label" style={{ color: "var(--cream-50)" }}>
+              {selectedVibe}
+              {selectedHairConcern ? ` · ${selectedHairConcern}` : ""}
+            </span>
+          )}
+        </SectionHead>
+        {showCampaign ? (
           <OutputPanel
             products={selectedProducts}
             copyResult={copyResult}
@@ -392,46 +465,97 @@ export default function Home() {
             copyLoading={copyLoading}
             imageLoading={imageLoading}
             isRevealing={isRevealing}
-            onRegenerateCopy={handleRegenerateCopy}
+            onRegenerate={handleGenerate}
+            onSceneLoaded={setSceneUrl}
           />
+        ) : (
+          <EmptyState text="Your campaign lands here — set the brief and generate." />
         )}
+      </section>
 
-        {hasGenerated && hasSelection && copyResult && selectedVibe && (
-          <RefineChat
-            products={selectedProducts}
-            vibe={selectedVibe}
-            currentCopy={copyResult}
-            onRefined={setCopyResult}
-          />
+      {/* ── 04 PREVIEW ───────────────────────────────────────────────── */}
+      <section id="preview" className={SECTION}>
+        <SectionHead index="04" title="How it lands." />
+        {showCampaign && copyResult && selectedVibe ? (
+          <div className="flex flex-col gap-[68px]">
+            <PlatformPreviews
+              products={selectedProducts}
+              copyResult={copyResult}
+              imageUrl={sceneUrl}
+              isRevealing={isRevealing}
+            />
+            <div className="grid grid-cols-1 gap-[18px] lg:grid-cols-2">
+              <div className="card p-6">
+                <RefineChat
+                  products={selectedProducts}
+                  vibe={selectedVibe}
+                  hairConcern={selectedHairConcern}
+                  currentCopy={copyResult}
+                  onRefined={handleRefined}
+                />
+              </div>
+              <DownloadBar
+                products={selectedProducts}
+                copyResult={copyResult}
+                imageUrl={sceneUrl}
+              />
+            </div>
+          </div>
+        ) : (
+          <EmptyState text="Instagram and TikTok mockups appear once there's copy to show." />
         )}
+      </section>
+
+      <footer className="flex flex-col gap-2 px-4 py-10 sm:flex-row sm:justify-between sm:px-6 lg:pr-12">
+        <span className="legal">
+          * MD Creative is an independent concept tool. Not affiliated with or
+          endorsed by mdlondon.
+        </span>
+        <span className="legal">
+          <span className="credit">Built by</span> Kautum Krishnan · v2.0
+        </span>
+      </footer>
+    </div>
+  );
+}
+
+const SECTION =
+  "rule-dashed flex flex-col gap-12 px-4 py-[68px] sm:px-6 lg:min-h-[100svh] lg:pr-12 lg:py-[120px]";
+
+function SectionHead({
+  index,
+  title,
+  children,
+}: {
+  index: string;
+  title: string;
+  children?: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <div className="flex flex-col gap-4">
+        <span className="label" style={{ color: "var(--cream-50)" }}>
+          {index}
+        </span>
+        <h2 className="heading">{title}</h2>
       </div>
+      {children}
+    </div>
+  );
+}
 
-      {hasGenerated && hasSelection && copyResult && (
-        <PlatformPreviews
-          products={selectedProducts}
-          copyResult={copyResult}
-          imageUrl={imageUrl}
-          isRevealing={isRevealing}
-        />
-      )}
-
-      {hasGenerated && hasSelection && copyResult && (
-        <DownloadBar
-          products={selectedProducts}
-          copyResult={copyResult}
-          imageUrl={imageUrl}
-        />
-      )}
-
-      <div className="mx-auto w-full max-w-5xl px-6 sm:px-10 pb-12">
-        <footer
-          className="pt-8 border-t text-xs leading-relaxed"
-          style={{ borderColor: "var(--border)", color: "var(--text-muted)" }}
-        >
-          MD Creative is an independent concept tool built by Kautum Krishnan as
-          part of a job application to mdlondon. Not affiliated with mdlondon.
-        </footer>
-      </div>
+function EmptyState({ text }: { text: string }) {
+  return (
+    <div
+      className="flex min-h-[40vh] items-center justify-center p-8 text-center"
+      style={{
+        borderRadius: "var(--radius-card)",
+        border: "1px dashed var(--cork)",
+      }}
+    >
+      <span className="label" style={{ color: "var(--cream-50)" }}>
+        {text}
+      </span>
     </div>
   );
 }
