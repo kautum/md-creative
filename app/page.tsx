@@ -15,14 +15,19 @@ import {
   clearHistory,
   type HistoryEntry,
 } from "@/lib/history";
-import ProductGrid from "@/components/ProductGrid";
+import { decodeCampaign, SHARE_PREFIX, type SharedCampaign } from "@/lib/share";
+import HeroStage from "@/components/HeroStage";
+import Marquee from "@/components/Marquee";
+import RangeGallery from "@/components/RangeGallery";
+import ScrollWords from "@/components/ScrollWords";
 import VibePicker from "@/components/VibePicker";
 import OutputPanel from "@/components/OutputPanel";
 import RefineChat from "@/components/RefineChat";
 import PlatformPreviews from "@/components/PlatformPreviews";
+import ShareCard from "@/components/ShareCard";
 import DownloadBar from "@/components/DownloadBar";
 import HistoryStrip from "@/components/HistoryStrip";
-import ProductImage from "@/components/ProductImage";
+import SelectionCapsule from "@/components/SelectionCapsule";
 
 // Cycled below the Generate button while a generation is in flight.
 const GENERATION_STEPS = [
@@ -73,7 +78,6 @@ export default function Home() {
     () => PRODUCTS.filter((p) => selectedProductIds.includes(p.id)),
     [selectedProductIds],
   );
-  const allSelected = selectedProductIds.length === ALL_IDS.length;
 
   // Hydrate the recent-campaigns strip from localStorage once, client-side.
   useEffect(() => {
@@ -237,29 +241,66 @@ export default function Home() {
     })();
   };
 
-  // Restore a saved campaign back into the main state so the full output panel
-  // reappears exactly as it was generated.
-  const handleRestoreCampaign = (entry: HistoryEntry) => {
-    const ids = entry.productIds.filter((id) =>
-      PRODUCTS.some((p) => p.id === id),
-    );
-    if (ids.length === 0) return;
+  // Put a finished campaign (from history or a share link) back on screen
+  // exactly as it was generated.
+  const applyCampaign = (c: SharedCampaign, historyId: string | null) => {
     // Invalidate any in-flight generation so it can't overwrite the restore.
     genIdRef.current += 1;
-    setSelectedProductIds(ids);
-    setSelectedVibe(entry.vibe);
-    setSelectedHairConcern(entry.hairConcern);
-    setCopyResult(entry.copy);
-    setImageUrl(entry.imageUrl);
+    setSelectedProductIds(c.ids);
+    setSelectedVibe(c.vibe);
+    setSelectedHairConcern(c.concern);
+    setCopyResult(c.copy);
+    setImageUrl(c.imageUrl);
     setSceneUrl(null);
     setError(null);
     setHasGenerated(true);
     setIsRevealing(true);
-    setActiveHistoryId(entry.id);
-    document
-      .getElementById("campaign")
-      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    setActiveHistoryId(historyId);
+    requestAnimationFrame(() =>
+      document.getElementById("campaign")?.scrollIntoView({ behavior: "smooth", block: "start" }),
+    );
   };
+
+  const handleRestoreCampaign = (entry: HistoryEntry) => {
+    const ids = entry.productIds.filter((id) => PRODUCTS.some((p) => p.id === id));
+    if (ids.length === 0) return;
+    applyCampaign(
+      {
+        ids,
+        vibe: entry.vibe,
+        concern: entry.hairConcern,
+        copy: entry.copy,
+        imageUrl: entry.imageUrl,
+      },
+      entry.id,
+    );
+  };
+
+  // Open a shared campaign link (#c=…) once on load. A damaged link says so
+  // instead of half-loading.
+  useEffect(() => {
+    if (!window.location.hash.startsWith(SHARE_PREFIX)) return;
+    decodeCampaign(window.location.hash)
+      .then((c) => applyCampaign(c, null))
+      .catch((err) => {
+        console.warn("[share] rejected link:", err);
+        setError("This share link is damaged or out of date — generate a fresh campaign instead.");
+      })
+      .finally(() => window.history.replaceState(null, "", window.location.pathname));
+  }, []);
+
+  // ⌘/Ctrl + Enter generates from anywhere on the page.
+  const generateRef = useRef<() => void>(() => {});
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+        e.preventDefault();
+        generateRef.current();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   const handleClearHistory = () => {
     clearHistory();
@@ -273,123 +314,59 @@ export default function Home() {
     }
   };
 
+  useEffect(() => {
+    generateRef.current = handleGenerate;
+  });
+
   const hasSelection = selectedProducts.length > 0;
   const isBundle = selectedProducts.length >= 2;
   const heroProduct = selectedProducts[0] ?? HERO_DEFAULT;
   const showCampaign = hasGenerated && hasSelection;
   const canGenerate = hasSelection && !!selectedVibe && !isGenerating;
   const generateHint = !hasSelection
-    ? "Pick at least one product above"
+    ? "Pick at least one product from the range"
     : !selectedVibe
       ? "Choose a vibe"
       : isGenerating
         ? generationStep
-        : `${campaignLabel(selectedProducts)} · ${selectedVibe}${selectedHairConcern ? ` · ${selectedHairConcern}` : ""}`;
+        : `${campaignLabel(selectedProducts)} · ${selectedVibe}${selectedHairConcern ? ` · ${selectedHairConcern}` : ""} · ⌘↵`;
+
+  const suggestedVibes = mostShared(selectedProducts, (p) => p.bestFor);
+  const suggestedConcerns = mostShared(selectedProducts, (p) => p.hairConcerns);
+
+  const shared: SharedCampaign | null =
+    showCampaign && copyResult && selectedVibe
+      ? {
+          ids: selectedProducts.map((p) => p.id),
+          vibe: selectedVibe,
+          concern: selectedHairConcern,
+          copy: copyResult,
+          imageUrl: sceneUrl ?? imageUrl,
+        }
+      : null;
 
   return (
-    <div id="top" className="flex flex-col">
-      {/* ── HERO — the object in the dark ─────────────────────────────── */}
-      <section className="relative flex min-h-[100svh] flex-col justify-between px-4 pb-6 pt-24 sm:px-6 lg:pr-12">
-        <div className="grid flex-1 grid-cols-1 items-center gap-10 lg:grid-cols-12 lg:gap-[18px]">
-          {/* Type sits above the object so the wordmark always reads whole. */}
-          <div className="pointer-events-none relative z-10 flex flex-col gap-4 lg:col-span-4 lg:self-start lg:pt-[8vh]">
-            <span className="label">Great hair, made easy — campaign studio</span>
-            <h1 className="display">
-              MD
-              <br />
-              Creative.
-            </h1>
-          </div>
+    <div className="flex flex-col">
+      <HeroStage product={heroProduct} />
 
-          <div className="relative flex h-[44vh] items-center justify-center lg:col-span-4 lg:h-[64vh]">
-            <div
-              aria-hidden
-              className="absolute inset-0"
-              style={{
-                // Warm rim light from the upper right, as the reference lights its object.
-                background:
-                  "radial-gradient(ellipse 55% 50% at 62% 42%, rgba(220,80,0,0.16), rgba(56,36,22,0.35) 45%, rgba(16,9,4,0) 75%)",
-              }}
-            />
-            <div className="animate-drift relative h-full w-full">
-              <ProductImage
-                key={heroProduct.id}
-                product={heroProduct}
-                className="animate-fade-in-up h-full w-full"
-              />
-            </div>
-          </div>
+      <Marquee />
 
-          <div className="flex flex-col gap-8 lg:col-span-4 lg:self-end lg:pb-[6vh]">
-            <p className="body-voice">
-              One product in, a whole campaign out. Caption, paid ads, a TikTok
-              script and a scene to stage it in, written in mdlondon&rsquo;s voice.
-            </p>
-            <a href="#range" className="btn-ghost self-start">
-              Start with the range ↓
-            </a>
-          </div>
-        </div>
-
-        {/* Info card, bottom-left. */}
-        <div className="mt-10 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <div
-            className="flex max-w-sm flex-col gap-3 p-5"
-            style={{
-              borderRadius: "var(--radius-card)",
-              background: "rgba(56,36,22,0.55)",
-            }}
-          >
-            <span className="label">
-              <span className="credit">Built by</span> Kautum Krishnan, for
-              mdlondon.
-            </span>
-            <hr className="rule-dashed" style={{ borderColor: "var(--driftwood)" }} />
-            <p className="body-sm" style={{ color: "var(--cream-70)", fontSize: 13 }}>
-              Groq writes the copy. Pollinations paints the scene. The real
-              product is cut out and composited in your browser.
-            </p>
-          </div>
-          <span className="label" style={{ color: "var(--cream-50)" }}>
-            {heroProduct.name} — £{heroProduct.price}
-          </span>
-        </div>
-      </section>
-
-      {/* ── 01 RANGE ─────────────────────────────────────────────────── */}
-      <section id="range" className={SECTION}>
-        <SectionHead index="01" title="Pick the object.">
-          <button type="button" onClick={handleSelectAll} className="link">
-            {allSelected ? "Clear selection" : `Select all ${ALL_IDS.length}`}
-          </button>
-        </SectionHead>
-        <ProductGrid
-          selectedIds={selectedProductIds}
-          onToggle={handleToggleProduct}
-        />
-      </section>
+      <RangeGallery
+        selectedIds={selectedProductIds}
+        onToggle={handleToggleProduct}
+        onSelectAll={handleSelectAll}
+      />
 
       {/* ── 02 BRIEF ─────────────────────────────────────────────────── */}
       <section id="brief" className={SECTION}>
-        <SectionHead index="02" title="Set the brief." />
+        <SectionHead index="02 — The brief" title="Set the brief." />
         <div className="grid grid-cols-1 gap-12 lg:grid-cols-12 lg:gap-[18px]">
-          <div className="flex flex-col gap-8 lg:col-span-5">
-            <p className="body-voice" style={{ color: "var(--cream-70)" }}>
-              {hasSelection ? (
-                <>
-                  You&rsquo;re writing for{" "}
-                  <span style={{ color: "var(--cream)" }}>
-                    {campaignLabel(selectedProducts)}
-                  </span>
-                  .{" "}
-                  {isBundle
-                    ? "One idea, framed as a routine — not a list."
-                    : selectedProducts[0].tagline}
-                </>
-              ) : (
-                "Nothing selected yet. Pick one product for a hero campaign, or a few for a bundle."
-              )}
-            </p>
+          <div className="flex flex-col gap-10 lg:col-span-5">
+            <ScrollWords
+              key={selectionSentence(selectedProducts)}
+              text={selectionSentence(selectedProducts)}
+              className="body-voice"
+            />
             {history.length > 0 && (
               <HistoryStrip
                 entries={history}
@@ -406,6 +383,8 @@ export default function Home() {
               selectedConcern={selectedHairConcern}
               onSelectConcern={setSelectedHairConcern}
               disabled={isGenerating}
+              suggestedVibes={suggestedVibes}
+              suggestedConcerns={suggestedConcerns}
             />
             <hr className="rule-dashed" />
             <div className="flex flex-col gap-4">
@@ -445,10 +424,8 @@ export default function Home() {
       {/* ── 03 CAMPAIGN ──────────────────────────────────────────────── */}
       <section id="campaign" className={SECTION}>
         <SectionHead
-          index="03"
-          title={
-            showCampaign ? `${campaignLabel(selectedProducts)}.` : "The campaign."
-          }
+          index="03 — The campaign"
+          title={showCampaign ? `${campaignLabel(selectedProducts)}.` : "The campaign."}
         >
           {showCampaign && selectedVibe && (
             <span className="label" style={{ color: "var(--cream-50)" }}>
@@ -475,16 +452,15 @@ export default function Home() {
 
       {/* ── 04 PREVIEW ───────────────────────────────────────────────── */}
       <section id="preview" className={SECTION}>
-        <SectionHead index="04" title="How it lands." />
-        {showCampaign && copyResult && selectedVibe ? (
+        <SectionHead index="04 — In the feed" title="How it lands." />
+        {shared && copyResult && selectedVibe ? (
           <div className="flex flex-col gap-[68px]">
             <PlatformPreviews
               products={selectedProducts}
               copyResult={copyResult}
               imageUrl={sceneUrl}
-              isRevealing={isRevealing}
             />
-            <div className="grid grid-cols-1 gap-[18px] lg:grid-cols-2">
+            <div className="grid grid-cols-1 gap-[18px] lg:grid-cols-3">
               <div className="card p-6">
                 <RefineChat
                   products={selectedProducts}
@@ -494,6 +470,7 @@ export default function Home() {
                   onRefined={handleRefined}
                 />
               </div>
+              <ShareCard campaign={shared} />
               <DownloadBar
                 products={selectedProducts}
                 copyResult={copyResult}
@@ -506,17 +483,49 @@ export default function Home() {
         )}
       </section>
 
-      <footer className="flex flex-col gap-2 px-4 py-10 sm:flex-row sm:justify-between sm:px-6 lg:pr-12">
-        <span className="legal">
-          * MD Creative is an independent concept tool. Not affiliated with or
-          endorsed by mdlondon.
+      <footer className="flex flex-col gap-6 px-4 pb-28 pt-[68px] sm:px-6 lg:pr-12">
+        <span className="display" style={{ fontSize: "clamp(64px, 14vw, 220px)", color: "var(--bark)" }}>
+          KPK.
         </span>
-        <span className="legal">
-          <span className="credit">Built by</span> Kautum Krishnan · v2.0
-        </span>
+        <div className="flex flex-col gap-2 sm:flex-row sm:justify-between">
+          <span className="legal">
+            * MD Creative is an independent concept tool. Not affiliated with or
+            endorsed by mdlondon.
+          </span>
+          <span className="legal">
+            <span className="credit">Built by</span> Kautum Krishnan Panjalaraja · v3.0
+          </span>
+        </div>
       </footer>
+
+      <SelectionCapsule
+        products={selectedProducts}
+        hasVibe={!!selectedVibe}
+        isGenerating={isGenerating}
+        hasCampaign={showCampaign}
+        onGenerate={handleGenerate}
+      />
     </div>
   );
+}
+
+/** The options most of the selected products are made for (ties included). */
+function mostShared(products: Product[], pick: (p: Product) => readonly string[]): string[] {
+  const counts = new Map<string, number>();
+  for (const p of products) for (const v of pick(p)) counts.set(v, (counts.get(v) ?? 0) + 1);
+  const max = Math.max(0, ...counts.values());
+  return max === 0 ? [] : [...counts].filter(([, n]) => n === max).map(([v]) => v);
+}
+
+function selectionSentence(products: Product[]): string {
+  if (products.length === 0) {
+    return "Nothing selected yet. Pick one product for a hero campaign, or a few for a bundle.";
+  }
+  if (products.length === 1) {
+    return `You’re writing for ${products[0].name}. ${products[0].tagline}`;
+  }
+  const total = products.reduce((s, p) => s + p.price, 0);
+  return `You’re writing for ${campaignLabel(products)} — £${total} of kit, framed as one routine, not a list.`;
 }
 
 const SECTION =

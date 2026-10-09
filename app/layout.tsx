@@ -12,7 +12,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "MD Creative 2.0",
+  title: "MD Creative 3.0 — by KPK",
   description:
     "One product in, a whole campaign out — AI social content for mdlondon.",
 };
@@ -32,7 +32,7 @@ export default function RootLayout({
           className="label-sm pointer-events-none fixed right-3 top-1/2 z-30 hidden -translate-y-1/2 lg:block"
           style={{ writingMode: "vertical-rl", color: "var(--cream-50)" }}
         >
-          MD CREATIVE — 2.0 — FOR MDLONDON
+          MD CREATIVE — 3.0 — BY KPK
         </span>
         <main>{children}</main>
       </body>

@@ -46,22 +46,24 @@ export default function SiteNav() {
 
   return (
     <header
-      className="fixed inset-x-0 top-0 z-40 flex items-center justify-between px-4 py-5 sm:px-6"
+      className="fixed inset-x-0 top-0 z-40 flex items-center justify-between px-4 py-5 transition-[background-color,backdrop-filter,border-color] duration-500 sm:px-6"
       style={{
-        // Not chrome — just enough walnut to keep labels legible over content.
-        background:
-          "linear-gradient(var(--walnut) 0%, rgba(16,9,4,0.85) 60%, rgba(16,9,4,0) 100%)",
+        // Transparent over the hero stage; frosted walnut once you're into
+        // the content, so labels stay legible over cards and imagery.
+        backgroundColor: active ? "rgba(16,9,4,0.72)" : "rgba(16,9,4,0)",
+        backdropFilter: active ? "blur(14px) saturate(140%)" : "none",
+        borderBottom: `1px dashed ${active ? "var(--cork)" : "transparent"}`,
       }}
     >
-      <a href="#top" className="label" style={{ fontSize: 14 }}>
+      <a href="#top" className="label shrink-0 text-[12px] sm:text-[14px]">
         MD CREATIVE.
       </a>
-      <nav className="flex items-center gap-4 sm:gap-7">
+      <nav className="flex items-center gap-3 sm:gap-7">
         {NAV_SECTIONS.map((s) => (
           <a
             key={s.id}
             href={`#${s.id}`}
-            className="label pb-1"
+            className="label pb-1 max-sm:text-[10px]"
             style={{
               borderBottom: `1px dashed ${active === s.id ? "var(--cream)" : "transparent"}`,
               color: active === s.id ? "var(--cream)" : "var(--cream-70)",

@@ -8,6 +8,9 @@ interface VibePickerProps {
   selectedConcern: string | null;
   onSelectConcern: (c: string | null) => void;
   disabled: boolean;
+  /** Options the selected products are made for (Product.bestFor / hairConcerns). */
+  suggestedVibes: string[];
+  suggestedConcerns: string[];
 }
 
 function ChipRow({
@@ -17,6 +20,7 @@ function ChipRow({
   value,
   onChange,
   disabled,
+  suggested,
 }: {
   label: string;
   hint?: string;
@@ -24,6 +28,7 @@ function ChipRow({
   value: string | null;
   onChange: (v: string) => void;
   disabled: boolean;
+  suggested: string[];
 }) {
   return (
     <fieldset className="flex flex-col gap-[14px]" disabled={disabled}>
@@ -44,7 +49,9 @@ function ChipRow({
             aria-pressed={value === o}
             onClick={() => onChange(o)}
           >
+            {suggested.includes(o) && <span aria-hidden>✦ </span>}
             {o}
+            {suggested.includes(o) && <span className="sr-only"> (suggested)</span>}
           </button>
         ))}
       </div>
@@ -58,15 +65,24 @@ export default function VibePicker({
   selectedConcern,
   onSelectConcern,
   disabled,
+  suggestedVibes,
+  suggestedConcerns,
 }: VibePickerProps) {
+  const hasSuggestions = suggestedVibes.length + suggestedConcerns.length > 0;
   return (
     <div className="flex flex-col gap-8">
+      {hasSuggestions && (
+        <span className="label-sm" style={{ color: "var(--cream-50)" }}>
+          ✦ Made for your selection
+        </span>
+      )}
       <ChipRow
         label="Vibe"
         options={VIBES}
         value={selectedVibe}
         onChange={onSelectVibe}
         disabled={disabled}
+        suggested={suggestedVibes}
       />
       <ChipRow
         label="Hair concern"
@@ -76,6 +92,7 @@ export default function VibePicker({
         // Click the active one again to clear it.
         onChange={(c) => onSelectConcern(selectedConcern === c ? null : c)}
         disabled={disabled}
+        suggested={suggestedConcerns}
       />
     </div>
   );
