@@ -15,9 +15,11 @@ export interface CutoutResult {
   /** Pixel size of the cutout file. */
   w: number;
   h: number;
+  /** The product's dominant body colour — the page's live accent. */
+  tone: string;
 }
 
-const META: Record<string, { w: number; h: number; footprint: number }> =
+const META: Record<string, { w: number; h: number; footprint: number; tone: string }> =
   CUTOUTS;
 
 /**

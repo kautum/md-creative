@@ -64,4 +64,7 @@ test("word count matches a hand count", () => {
   assert.equal(wordCount("Volume. Shine. No frizz."), 4);
   assert.equal(wordCount("  spaced   out  words "), 3);
   assert.equal(wordCount(""), 0);
+  // Dashes and ampersands aren't words (a bundle CTA was miscounted as 10).
+  assert.equal(wordCount("Shop the Frizz Free Curl — BLOW bundle — £185"), 8);
+  assert.equal(wordCount("Volume & Body"), 2);
 });

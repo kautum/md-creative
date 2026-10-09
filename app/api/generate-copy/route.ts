@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
+import { getLiveCatalogue } from "@/lib/livePrices";
 import {
+  matchRoutine,
   PRODUCTS,
   VIBES,
   HAIR_CONCERNS,
@@ -167,20 +169,37 @@ function buildUserPrompt(
 ): string {
   const n = products.length;
 
+  const priceText = (p: Product) =>
+    p.wasPrice ? `£${p.price} (reduced from £${p.wasPrice})` : `£${p.price}`;
+
   const productBlock =
     n === 1
       ? [
           `Product: ${products[0].name} (${products[0].category})`,
           `What it is: ${products[0].tagline}`,
           `Hair concerns it helps with: ${products[0].hairConcerns.join(", ")}`,
-          `Price: £${products[0].price}`,
+          `Price today: ${priceText(products[0])}`,
         ].join("\n")
       : [
           `This is a BUNDLE campaign featuring ${n} mdlondon products:`,
           ...products.map(
-            (p) => `- ${p.name} (${p.category}, £${p.price}) — ${p.tagline}`,
+            (p) => `- ${p.name} (${p.category}, ${priceText(p)}) — ${p.tagline}`,
           ),
         ].join("\n");
+
+  // Facts the copy may use. Only true things: the bundle exists on the store
+  // at this price, and every Numbers bottle carries a "Scan to Know" QR code.
+  const routine = matchRoutine(products.map((p) => p.id));
+  const factsBlock = [
+    routine
+      ? `This exact selection is mdlondon's official "${routine.name}" bundle: £${routine.price} (was £${routine.wasPrice}, save £${routine.wasPrice - routine.price}). ctaRecommendation MUST name the "${routine.name}" bundle and its £${routine.price} price (e.g. "Shop the ${routine.name} bundle — £${routine.price}"). Elsewhere, call it the routine or the kit.`
+      : null,
+    products.some((p) => p.category === "number")
+      ? `Every Numbers bottle has a "Scan to Know" QR code that opens The Knowing — Michael Douglas's AI hair adviser on WhatsApp, trained on his 38 years of hairdressing. It can be a hook or CTA ("scan the bottle, ask Michael"), but use it at most once.`
+      : null,
+  ]
+    .filter(Boolean)
+    .join("\n");
 
   // Bundle framing so multi-product copy reads as a system, not a product list.
   const bundleBlock =
@@ -252,6 +271,7 @@ function buildUserPrompt(
   if (mode === "refine" && existingCopy) {
     return [
       productBlock,
+      factsBlock ? `\n${factsBlock}` : "",
       "",
       briefBlock,
       bundleBlock ? `\n${bundleBlock}` : "",
@@ -271,6 +291,7 @@ function buildUserPrompt(
 
   return [
     productBlock,
+    factsBlock ? `\n${factsBlock}` : "",
     "",
     briefBlock,
     bundleBlock ? `\n${bundleBlock}` : "",
@@ -417,8 +438,13 @@ export async function POST(request: Request) {
     return badRequest(`Unknown hair concern: ${hairConcern}`);
   }
 
-  // Preserve catalogue order.
-  const products = PRODUCTS.filter((p) => ids.includes(p.id));
+  // Preserve catalogue order; price from the live store so the copy quotes
+  // what a customer will actually pay.
+  const live = await getLiveCatalogue();
+  const products = PRODUCTS.filter((p) => ids.includes(p.id)).map((p) => ({
+    ...p,
+    ...live.prices[p.id],
+  }));
 
   let previous: CopyResult | undefined;
   if (mode === "refine") {

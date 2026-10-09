@@ -2,61 +2,109 @@
   "blow": {
     "w": 1400,
     "h": 1359,
-    "footprint": 0.688
+    "footprint": 0.688,
+    "tone": "#608a9e"
   },
   "brush": {
     "w": 155,
     "h": 658,
-    "footprint": 0.471
+    "footprint": 0.471,
+    "tone": "#67899e"
   },
   "curl": {
     "w": 836,
     "h": 690,
-    "footprint": 0.287
+    "footprint": 0.287,
+    "tone": "#9e616c"
   },
   "phat": {
     "w": 929,
     "h": 838,
-    "footprint": 0.353
+    "footprint": 0.353,
+    "tone": "#678c9e"
   },
   "strait": {
     "w": 1400,
     "h": 1111,
-    "footprint": 0.425
+    "footprint": 0.425,
+    "tone": "#9e9e67"
   },
   "the-1": {
     "w": 253,
     "h": 1000,
-    "footprint": 0.992
+    "footprint": 0.992,
+    "tone": "#678b9e"
+  },
+  "the-10": {
+    "w": 311,
+    "h": 1148,
+    "footprint": 0.99,
+    "tone": "#678c9e"
+  },
+  "the-11": {
+    "w": 413,
+    "h": 1317,
+    "footprint": 0.988,
+    "tone": "#9e6767"
+  },
+  "the-12": {
+    "w": 283,
+    "h": 1400,
+    "footprint": 0.988,
+    "tone": "#7abbbb"
   },
   "the-2": {
     "w": 259,
     "h": 1003,
-    "footprint": 0.977
+    "footprint": 0.977,
+    "tone": "#889e67"
   },
   "the-3": {
     "w": 204,
     "h": 990,
-    "footprint": 0.99
+    "footprint": 0.99,
+    "tone": "#e2b093"
   },
   "the-4": {
     "w": 241,
     "h": 998,
-    "footprint": 0.992
+    "footprint": 0.992,
+    "tone": "#9e676e"
   },
   "the-5": {
     "w": 241,
     "h": 999,
-    "footprint": 0.988
+    "footprint": 0.988,
+    "tone": "#ad613b"
   },
   "the-6": {
     "w": 584,
     "h": 518,
-    "footprint": 0.974
+    "footprint": 0.974,
+    "tone": "#76b0b6"
+  },
+  "the-7": {
+    "w": 351,
+    "h": 1400,
+    "footprint": 0.991,
+    "tone": "#d07a49"
+  },
+  "the-8": {
+    "w": 337,
+    "h": 1400,
+    "footprint": 0.993,
+    "tone": "#8f9e67"
+  },
+  "the-9": {
+    "w": 595,
+    "h": 1400,
+    "footprint": 0.618,
+    "tone": "#ebb999"
   },
   "wave": {
     "w": 711,
     "h": 1023,
-    "footprint": 0.955
+    "footprint": 0.955,
+    "tone": "#5e859e"
   }
 }

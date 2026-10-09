@@ -9,9 +9,14 @@ shows on the dark canvas.
     python -m venv .venv && .venv/bin/pip install "rembg[cpu]" scipy
     .venv/bin/python scripts/make_cutouts.py            # all products
     .venv/bin/python scripts/make_cutouts.py blow wave  # just these
+    .venv/bin/python scripts/make_cutouts.py --tones-only  # recompute tones
 
-Writes public/cutouts/<id>.webp and lib/cutouts.json ({id: {w, h, footprint}}).
+Writes public/cutouts/<id>.webp and lib/cutouts.json
+({id: {w, h, footprint, tone}}). `tone` is the product's dominant body colour,
+which the page uses as its live accent when that product leads.
 """
+
+import colorsys
 
 import io
 import json
@@ -36,7 +41,7 @@ MAX_SIDE = 1400  # plenty for a ~700px CSS render at 2x DPR
 ALPHA_FLOOR = 8  # alpha below this is treated as background (kills wisps)
 BG_SIGMA = 24  # px; scale of the local background-colour estimate
 FOOTPRINT_BAND = 0.1  # bottom 10% of the product, as in lib/cutout.ts
-EXPECTED_PRODUCTS = 12
+EXPECTED_PRODUCTS = 18
 
 
 def read_products() -> list[tuple[str, str]]:
@@ -86,6 +91,24 @@ def keep_main_body(a: np.ndarray) -> np.ndarray:
     return a * keep
 
 
+def tone_of(img: Image.Image) -> str:
+    """Dominant body colour: the per-channel median of solid, saturated,
+    mid-tone pixels (labels, chrome and shadows excluded), then lifted to a
+    brightness that reads as a glow on the dark canvas."""
+    px = np.asarray(img.convert("RGBA")).reshape(-1, 4).astype(np.float64) / 255
+    solid = px[px[:, 3] > 0.9][:, :3]
+    if len(solid) == 0:
+        raise SystemExit("tone_of: no solid pixels")
+    hsv = np.array([colorsys.rgb_to_hsv(*c) for c in solid[:: max(1, len(solid) // 20000)]])
+    rgb = solid[:: max(1, len(solid) // 20000)]
+    keep = (hsv[:, 1] > 0.18) & (hsv[:, 2] > 0.18) & (hsv[:, 2] < 0.97)
+    body = rgb[keep] if keep.sum() > 50 else rgb
+    r, g, b = np.median(body, axis=0)
+    h, sat, v = colorsys.rgb_to_hsv(r, g, b)
+    r, g, b = colorsys.hsv_to_rgb(h, min(1.0, max(sat, 0.35)), min(1.0, max(v, 0.62)))
+    return "#{:02x}{:02x}{:02x}".format(round(r * 255), round(g * 255), round(b * 255))
+
+
 def process(session, pid: str, url: str) -> dict:
     src = fetch(url)
     cut = remove(src, session=session)  # RGBA with a soft matte
@@ -110,11 +133,19 @@ def process(session, pid: str, url: str) -> dict:
     img.thumbnail((MAX_SIDE, MAX_SIDE), Image.LANCZOS)
     img.save(OUT_DIR / f"{pid}.webp", "WEBP", quality=92, method=6)
     coverage = float((a > 0.5).mean())
-    print(f"{pid:7s} {img.width}x{img.height} footprint={footprint:.2f} coverage={coverage:.2f}")
-    return {"w": img.width, "h": img.height, "footprint": round(float(footprint), 3)}
+    tone = tone_of(img)
+    print(f"{pid:7s} {img.width}x{img.height} footprint={footprint:.2f} coverage={coverage:.2f} tone={tone}")
+    return {"w": img.width, "h": img.height, "footprint": round(float(footprint), 3), "tone": tone}
 
 
 def main() -> None:
+    if sys.argv[1:] == ["--tones-only"]:
+        meta = json.loads(META.read_text())
+        for pid in meta:
+            meta[pid]["tone"] = tone_of(Image.open(OUT_DIR / f"{pid}.webp"))
+            print(f"{pid:7s} tone={meta[pid]['tone']}")
+        META.write_text(json.dumps(dict(sorted(meta.items())), indent=2) + "\n")
+        return
     only = set(sys.argv[1:])
     products = [(i, u) for i, u in read_products() if not only or i in only]
     if only and len(products) != len(only):
