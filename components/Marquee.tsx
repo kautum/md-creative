@@ -10,13 +10,19 @@ import {
   useSpring,
   useVelocity,
 } from "framer-motion";
-import { PRODUCTS } from "@/lib/products";
 
 const BASE_SPEED = 38; // px per second at rest
-const LINE = PRODUCTS.map((p) => p.name).join("  —  ") + "  —  ";
+// mdlondon's own lines (mdlondon.com, Oct 2026), not ours.
+const LINE =
+  [
+    "Hair confidence, every day",
+    "Great hair shouldn’t be complicated",
+    "The right kit and a little know-how",
+    "Great hair starts with the right routine",
+  ].join("  —  ") + "  —  ";
 
 /**
- * The range in display type, drifting left forever. Scrolling either way
+ * mdlondon's own lines in display type, drifting left forever. Scrolling either way
  * pushes it faster — the marquee feels the page move.
  */
 export default function Marquee() {

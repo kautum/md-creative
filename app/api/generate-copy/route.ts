@@ -166,6 +166,7 @@ function buildUserPrompt(
   existingCopy: ExistingCopy | undefined,
   refineRequest: string | undefined,
   style: VisualStyle,
+  promotions: string[] = [],
 ): string {
   const n = products.length;
 
@@ -177,13 +178,14 @@ function buildUserPrompt(
       ? [
           `Product: ${products[0].name} (${products[0].category})`,
           `What it is: ${products[0].tagline}`,
+          `mdlondon's own line for it: "${products[0].slogan}"`,
           `Hair concerns it helps with: ${products[0].hairConcerns.join(", ")}`,
           `Price today: ${priceText(products[0])}`,
         ].join("\n")
       : [
           `This is a BUNDLE campaign featuring ${n} mdlondon products:`,
           ...products.map(
-            (p) => `- ${p.name} (${p.category}, ${priceText(p)}) — ${p.tagline}`,
+            (p) => `- ${p.name} (${p.category}, ${priceText(p)}) — ${p.tagline} mdlondon's own line: "${p.slogan}"`,
           ),
         ].join("\n");
 
@@ -194,8 +196,11 @@ function buildUserPrompt(
     routine
       ? `This exact selection is mdlondon's official "${routine.name}" bundle: £${routine.price} (was £${routine.wasPrice}, save £${routine.wasPrice - routine.price}). ctaRecommendation MUST name the "${routine.name}" bundle and its £${routine.price} price (e.g. "Shop the ${routine.name} bundle — £${routine.price}"). Elsewhere, call it the routine or the kit.`
       : null,
+    promotions.length
+      ? `Promotions live on mdlondon.com right now: ${promotions.map((x) => `"${x}"`).join("; ")}. Mention one only if it applies to these products, and never invent one.`
+      : null,
     products.some((p) => p.category === "number")
-      ? `Every Numbers bottle has a "Scan to Know" QR code that opens The Knowing — Michael Douglas's AI hair adviser on WhatsApp, trained on his 38 years of hairdressing. It can be a hook or CTA ("scan the bottle, ask Michael"), but use it at most once.`
+      ? `Every Numbers bottle has a "Scan to Know" QR code that opens The Knowing — Michael Douglas's AI hair adviser on WhatsApp, trained on his 35+ years of hairdressing. It can be a hook or CTA ("scan the bottle, ask Michael"), but use it at most once.`
       : null,
   ]
     .filter(Boolean)
@@ -475,6 +480,7 @@ export async function POST(request: Request) {
     previous,
     refineRequest?.trim(),
     style,
+    live.promotions,
   );
   const messages = [
     {

@@ -21,6 +21,41 @@ for the Junior AI Developer role at [mdlondon](https://mdlondon.com)*
 
 ---
 
+## What's new in 3.2
+
+**Three colours.** Soft black `#141413`, warm ivory `#F3EDE2` and deep editorial blue
+`#23458F`. Blue is the one colour that means "chosen" or "act": the primary button,
+picked cards and chips, the glow, progress lines and the full stop in
+**MD CREATIVE.** Products keep their own colours in their photographs; the
+interface stays in these three.
+
+**The range is a carousel you drive.** Use the arrows, drag, swipe or the ←/→ keys,
+with snap-to-card. Filter by All, Tools or The Numbers. The card at the start line
+is in focus and the ones ahead recede. Tap any card to pick it as you browse; a drag
+never counts as a pick.
+
+**mdlondon in its own words.** Research on mdlondon.com (about page, product pages,
+The Knowing, homepage) found the brand's actual language:
+
+- Mission: *"Tools and knowledge for hair confidence every day."*
+- Principle: *"We make great hair simple, so no jargon or unnecessary fluff."*
+- Lines they repeat: *"Because great hair shouldn't be complicated"*, *"Great hair
+  starts with the right routine"*, *"…so that great hair happens."*
+- Their customers' days: *"work from home days, running around days or going out days."*
+- Origin: Michael's lockdown Instagram Live Hair Clinics, and the question he heard
+  most: *"why won't my hair look like it does when I leave the hairdressers?"*
+- Every product's own opening line, e.g. STRAIT *"Sleek hair, made simple."* and
+  THE 7 *"A blow dry that lasts. Whatever the weather throws at it."*
+
+These now drive the copy prompt, the product cards (quoted), the marquee and the
+hero. **"Great Hair Made Easy"**, the mantra 1.0 was built on, appears nowhere on
+mdlondon.com, so the app no longer forces it or #GREATHAIRMADEEASY. Michael's
+experience is quoted as the site states it ("over 35 years"), not the 38 from a
+press article. The store's **live promotions** (its announcement bar, e.g.
+"3 FOR 2 ON NUMBERS") are read hourly alongside prices. They're shown in the range,
+and the copy may mention one only if it applies; if the read fails, nothing is
+claimed.
+
 ## What's new in 3.1
 
 The final 5%: everything in 3.1 came from researching mdlondon itself. The sources

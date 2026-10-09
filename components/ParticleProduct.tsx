@@ -42,12 +42,12 @@ interface Particle {
 }
 
 const SAMPLE_MAX = 240; // px, longest side of the alpha sample
-const PORCELAIN = [244, 242, 238];
+const IVORY = [243, 237, 226];
 const WIND_RADIUS = 120; // px
 const WIND_FRESH_MS = 160; // only a moving pointer blows
 
 function mix(c: number[], t: number) {
-  return c.map((v, i) => Math.round(v + (PORCELAIN[i] - v) * t));
+  return c.map((v, i) => Math.round(v + (IVORY[i] - v) * t));
 }
 
 async function sample(src: string, count: number, kind: ParticleKind) {

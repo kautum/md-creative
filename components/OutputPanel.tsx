@@ -253,7 +253,7 @@ function AdCreative({
       <div
         ref={frameRef}
         className="relative aspect-[4/3] w-full overflow-hidden"
-        style={{ background: "rgba(31,41,44,0.35)", isolation: "isolate" }}
+        style={{ background: "rgba(29,28,26,0.35)", isolation: "isolate" }}
       >
         {!showScene && products[0] && (
           <div className="absolute inset-[16%]">
