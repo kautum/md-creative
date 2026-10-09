@@ -35,7 +35,7 @@ function ChipRow({
       <legend className="mb-[14px] flex items-baseline gap-3">
         <span className="label">{label}</span>
         {hint && (
-          <span className="label-sm" style={{ color: "var(--cream-50)" }}>
+          <span className="label-sm" style={{ color: "var(--fg-50)" }}>
             {hint}
           </span>
         )}
@@ -72,7 +72,7 @@ export default function VibePicker({
   return (
     <div className="flex flex-col gap-8">
       {hasSuggestions && (
-        <span className="label-sm" style={{ color: "var(--cream-50)" }}>
+        <span className="label-sm" style={{ color: "var(--fg-50)" }}>
           ✦ Made for your selection
         </span>
       )}

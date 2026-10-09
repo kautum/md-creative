@@ -40,13 +40,13 @@ export default function Marquee() {
     <div
       aria-hidden
       className="rule-dashed overflow-hidden py-10"
-      style={{ borderBottom: "1px dashed var(--cork)" }}
+      style={{ borderBottom: "1px dashed var(--line)" }}
     >
       <motion.div style={{ x }} className="flex w-max whitespace-pre">
-        <span ref={rowRef} className="display" style={{ color: "var(--driftwood)", fontSize: "clamp(56px, 9vw, 132px)" }}>
+        <span ref={rowRef} className="display" style={{ color: "var(--slate)", fontSize: "clamp(56px, 9vw, 132px)" }}>
           {LINE}
         </span>
-        <span className="display" style={{ color: "var(--driftwood)", fontSize: "clamp(56px, 9vw, 132px)" }}>
+        <span className="display" style={{ color: "var(--slate)", fontSize: "clamp(56px, 9vw, 132px)" }}>
           {LINE}
         </span>
       </motion.div>

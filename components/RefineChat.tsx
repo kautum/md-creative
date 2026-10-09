@@ -112,7 +112,7 @@ export default function RefineChat({
               key={`${h}-${i}`}
               className="rule-dashed flex items-baseline justify-between gap-3 py-2"
             >
-              <span className="body-sm" style={{ color: "var(--cream-70)" }}>
+              <span className="body-sm" style={{ color: "var(--fg-70)" }}>
                 {h}
               </span>
               <span className="label-sm">Applied</span>

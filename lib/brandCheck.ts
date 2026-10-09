@@ -18,8 +18,12 @@ export interface BrandCheckResult {
 const REQUIRED_TAGS = ["#MDLONDON", "#GREATHAIRMADEEASY"];
 const EMOJI = /\p{Extended_Pictographic}/gu;
 
+/** Words, not tokens: a free-standing "—" or "&" isn't a word. */
 export function wordCount(text: string): number {
-  return text.trim().split(/\s+/).filter(Boolean).length;
+  return text
+    .trim()
+    .split(/\s+/)
+    .filter((t) => /[\p{L}\p{N}]/u.test(t)).length;
 }
 
 function maxWords(id: string, label: string, text: string, max: number): BrandCheckResult {

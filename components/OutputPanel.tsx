@@ -37,7 +37,7 @@ function Bar({ w, h = 12 }: { w: string; h?: number }) {
         width: w,
         height: h,
         borderRadius: 2,
-        background: "var(--cork)",
+        background: "var(--line)",
       }}
     />
   );
@@ -90,7 +90,7 @@ function CopyButton({
       type="button"
       onClick={() => onCopy(field, value)}
       className="label-sm shrink-0 underline-offset-4 hover:underline"
-      style={{ color: copied ? "var(--cream)" : "var(--cream-50)" }}
+      style={{ color: copied ? "var(--fg)" : "var(--fg-50)" }}
     >
       {copied ? "Copied" : "Copy"}
     </button>
@@ -116,7 +116,7 @@ function Field({
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-baseline justify-between gap-3">
-        <span className="label-sm" style={{ color: "var(--cream-70)" }}>
+        <span className="label-sm" style={{ color: "var(--fg-70)" }}>
           {label}
         </span>
         <CopyButton
@@ -253,13 +253,14 @@ function AdCreative({
       <div
         ref={frameRef}
         className="relative aspect-[4/3] w-full overflow-hidden"
-        style={{ background: "rgba(56,36,22,0.35)", isolation: "isolate" }}
+        style={{ background: "rgba(31,41,44,0.35)", isolation: "isolate" }}
       >
         {!showScene && products[0] && (
           <div className="absolute inset-[16%]">
             <ParticleProduct
               src={getCutout(products[0].id).url}
               form={breath}
+              kind={products[0].category === "tool" ? "strand" : "mist"}
               pad={0.2}
               count={900}
             />
@@ -298,7 +299,7 @@ function AdCreative({
             ) : currentUrl || imageLoading ? (
               <SceneProgress retrying={retryCount > 0} />
             ) : (
-              <span className="label" style={{ color: "var(--cream-50)" }}>
+              <span className="label" style={{ color: "var(--fg-50)" }}>
                 Waiting for the brief
               </span>
             )}
@@ -382,7 +383,7 @@ export default function OutputPanel({
         className="grid grid-cols-1 gap-10 lg:grid-cols-12"
       >
         <div className="flex flex-col gap-6 lg:col-span-5">
-          <span className="label" style={{ color: "var(--cream-70)" }}>
+          <span className="label" style={{ color: "var(--fg-70)" }}>
             Campaign angle
           </span>
           {copyLoading ? (
@@ -410,7 +411,7 @@ export default function OutputPanel({
                 copiedField={copiedField}
                 onCopy={handleCopyField}
               >
-                <p className="body-sm" style={{ color: "var(--cream-70)" }}>
+                <p className="body-sm" style={{ color: "var(--fg-70)" }}>
                   {copyResult.creativeDirection}
                 </p>
               </Field>
@@ -534,7 +535,7 @@ export default function OutputPanel({
               {tt.audio_vibe && (
                 <>
                   <hr className="rule-dashed" />
-                  <p className="label-sm" style={{ color: "var(--cream-70)" }}>
+                  <p className="label-sm" style={{ color: "var(--fg-70)" }}>
                     Audio — {tt.audio_vibe}
                   </p>
                 </>

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   PRODUCTS,
   campaignLabel,
+  matchRoutine,
   type Product,
   type GeneratedCopy,
   type GeneratedImage,
@@ -16,6 +17,8 @@ import {
   type HistoryEntry,
 } from "@/lib/history";
 import { decodeCampaign, SHARE_PREFIX, type SharedCampaign } from "@/lib/share";
+import type { LiveCatalogue } from "@/lib/livePrices";
+import { getCutout } from "@/lib/cutout";
 import HeroStage from "@/components/HeroStage";
 import Marquee from "@/components/Marquee";
 import RangeGallery from "@/components/RangeGallery";
@@ -73,10 +76,28 @@ export default function Home() {
 
   const isGenerating = copyLoading || imageLoading;
 
+  // Live prices from mdlondon.com (hourly). Until they arrive — or if the
+  // store can't be reached — the dated static prices show, and say so.
+  const [live, setLive] = useState<LiveCatalogue | null>(null);
+  useEffect(() => {
+    fetch("/api/catalogue")
+      .then((r) => (r.ok ? (r.json() as Promise<LiveCatalogue>) : null))
+      .then((c) => {
+        if (c && (c.source === "live" || c.source === "static") && typeof c.prices === "object") setLive(c);
+      })
+      .catch((err) => console.warn("[catalogue] using static prices:", err));
+  }, []);
+  const catalogue = useMemo(
+    () => PRODUCTS.map((p) => ({ ...p, ...(live?.prices[p.id] ?? {}) })),
+    [live],
+  );
+  const priceNote =
+    live?.source === "live" ? "Live prices from mdlondon.com" : "Prices as of 9 Oct 2026";
+
   // Selected products in catalogue order (stable — bundle layouts index into it).
   const selectedProducts = useMemo(
-    () => PRODUCTS.filter((p) => selectedProductIds.includes(p.id)),
-    [selectedProductIds],
+    () => catalogue.filter((p) => selectedProductIds.includes(p.id)),
+    [catalogue, selectedProductIds],
   );
 
   // Hydrate the recent-campaigns strip from localStorage once, client-side.
@@ -111,6 +132,11 @@ export default function Home() {
     setSelectedProductIds((prev) =>
       prev.includes(p.id) ? prev.filter((id) => id !== p.id) : [...prev, p.id],
     );
+    clearOutput();
+  };
+
+  const handlePickRoutine = (ids: string[]) => {
+    setSelectedProductIds(ids);
     clearOutput();
   };
 
@@ -321,6 +347,11 @@ export default function Home() {
   const hasSelection = selectedProducts.length > 0;
   const isBundle = selectedProducts.length >= 2;
   const heroProduct = selectedProducts[0] ?? HERO_DEFAULT;
+  const heroTone = getCutout(heroProduct.id).tone;
+  // The page's light follows the lead product (glides via @property --tone).
+  useEffect(() => {
+    document.documentElement.style.setProperty("--tone", heroTone);
+  }, [heroTone]);
   const showCampaign = hasGenerated && hasSelection;
   const canGenerate = hasSelection && !!selectedVibe && !isGenerating;
   const generateHint = !hasSelection
@@ -355,6 +386,9 @@ export default function Home() {
         selectedIds={selectedProductIds}
         onToggle={handleToggleProduct}
         onSelectAll={handleSelectAll}
+        onPickRoutine={handlePickRoutine}
+        products={catalogue}
+        priceNote={priceNote}
       />
 
       {/* ── 02 BRIEF ─────────────────────────────────────────────────── */}
@@ -404,7 +438,7 @@ export default function Home() {
                 key={generateHint}
                 aria-live="polite"
                 className="label animate-fade-in-up"
-                style={{ color: "var(--cream-50)" }}
+                style={{ color: "var(--fg-50)" }}
               >
                 {generateHint}
               </span>
@@ -412,7 +446,7 @@ export default function Home() {
             {error && (
               <div role="alert" className="card flex flex-col gap-2 p-5">
                 <span className="label">Something went wrong</span>
-                <p className="body-sm" style={{ color: "var(--cream-70)" }}>
+                <p className="body-sm" style={{ color: "var(--fg-70)" }}>
                   {error}
                 </p>
               </div>
@@ -428,7 +462,7 @@ export default function Home() {
           title={showCampaign ? `${campaignLabel(selectedProducts)}.` : "The campaign."}
         >
           {showCampaign && selectedVibe && (
-            <span className="label" style={{ color: "var(--cream-50)" }}>
+            <span className="label" style={{ color: "var(--fg-50)" }}>
               {selectedVibe}
               {selectedHairConcern ? ` · ${selectedHairConcern}` : ""}
             </span>
@@ -484,7 +518,7 @@ export default function Home() {
       </section>
 
       <footer className="flex flex-col gap-6 px-4 pb-28 pt-[68px] sm:px-6 lg:pr-12">
-        <span className="display" style={{ fontSize: "clamp(64px, 14vw, 220px)", color: "var(--bark)" }}>
+        <span className="display" style={{ fontSize: "clamp(64px, 14vw, 220px)", color: "var(--raised)" }}>
           KPK.
         </span>
         <div className="flex flex-col gap-2 sm:flex-row sm:justify-between">
@@ -493,7 +527,7 @@ export default function Home() {
             endorsed by mdlondon.
           </span>
           <span className="legal">
-            <span className="credit">Built by</span> Kautum Krishnan Panjalaraja · v3.0
+            <span className="credit">Built by</span> Kautum Krishnan Panjalaraja · v3.1
           </span>
         </div>
       </footer>
@@ -524,6 +558,10 @@ function selectionSentence(products: Product[]): string {
   if (products.length === 1) {
     return `You’re writing for ${products[0].name}. ${products[0].tagline}`;
   }
+  const routine = matchRoutine(products.map((p) => p.id));
+  if (routine) {
+    return `You’re writing for mdlondon’s own ${routine.name} bundle — ${products.length} products, £${routine.price}, saving £${routine.wasPrice - routine.price}.`;
+  }
   const total = products.reduce((s, p) => s + p.price, 0);
   return `You’re writing for ${campaignLabel(products)} — £${total} of kit, framed as one routine, not a list.`;
 }
@@ -543,7 +581,7 @@ function SectionHead({
   return (
     <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-end sm:justify-between">
       <div className="flex flex-col gap-4">
-        <span className="label" style={{ color: "var(--cream-50)" }}>
+        <span className="label" style={{ color: "var(--fg-50)" }}>
           {index}
         </span>
         <h2 className="heading">{title}</h2>
@@ -559,10 +597,10 @@ function EmptyState({ text }: { text: string }) {
       className="flex min-h-[40vh] items-center justify-center p-8 text-center"
       style={{
         borderRadius: "var(--radius-card)",
-        border: "1px dashed var(--cork)",
+        border: "1px dashed var(--line)",
       }}
     >
-      <span className="label" style={{ color: "var(--cream-50)" }}>
+      <span className="label" style={{ color: "var(--fg-50)" }}>
         {text}
       </span>
     </div>

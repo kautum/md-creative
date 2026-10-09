@@ -14,7 +14,7 @@ import {
 import type { Product } from "@/lib/products";
 import { getCutout } from "@/lib/cutout";
 import ProductImage from "@/components/ProductImage";
-import ParticleProduct from "@/components/ParticleProduct";
+import ParticleProduct, { type Pointer } from "@/components/ParticleProduct";
 
 /**
  * The hero is a pinned stage: 340vh of scroll scrubs one product through
@@ -72,7 +72,7 @@ function Chapter({
       className="pointer-events-none absolute inset-x-4 bottom-[12vh] grid grid-cols-1 gap-6 sm:inset-x-6 lg:inset-x-6 lg:bottom-auto lg:top-1/2 lg:-translate-y-1/2 lg:grid-cols-12 lg:pr-6"
     >
       <div className="flex flex-col gap-4 lg:col-span-3">
-        <span className="label" style={{ color: "var(--cream-50)" }}>
+        <span className="label" style={{ color: "var(--fg-50)" }}>
           {chapter.n} / 03
         </span>
         <h2 className="heading">{chapter.title}</h2>
@@ -105,12 +105,12 @@ function BurstCard({
         className="absolute inset-0"
         style={{
           borderRadius: "var(--radius-card)",
-          border: "1px solid var(--cork)",
-          background: "rgba(56,36,22,0.72)",
+          border: "1px solid var(--line)",
+          background: "rgba(31,41,44,0.72)",
           backdropFilter: "blur(10px)",
         }}
       />
-      <span className="label-sm relative" style={{ color: "var(--cream-50)" }}>
+      <span className="label-sm relative" style={{ color: "var(--fg-50)" }}>
         {card.label}
       </span>
       <span className="body-sm relative" style={{ fontSize: 14 }}>
@@ -142,6 +142,7 @@ export default function HeroStage({ product }: { product: Product }) {
   const form = useTransform(() => Math.min(intro.get(), scrollForm.get()));
   const imageOpacity = useTransform(form, [0.86, 1], [0, 1]);
   const particleOpacity = useTransform(form, [0.9, 1], [1, 0]);
+  const hintOpacity = useTransform(p, [0.47, 0.52, 0.6, 0.65], [0, 1, 1, 0]);
 
   // The object's path through the chapters.
   const scale = useTransform(p, [0, 0.4, 0.62, 0.8, 1], [1, 0.82, 0.62, 0.78, 0.78]);
@@ -149,6 +150,8 @@ export default function HeroStage({ product }: { product: Product }) {
   const lift = useTransform(p, [0, 0.72, 0.82], ["0vh", "0vh", "6vh"]);
 
   // Mouse tilt — a small 3D lean toward the pointer, springy.
+  // Where the pointer is, shared with the particle canvas: it's the hairdryer.
+  const pointer = useRef<Pointer | null>(null);
   const mx = useMotionValue(0);
   const my = useMotionValue(0);
   const rotateY = useSpring(useTransform(mx, [-1, 1], [-14, 14]), { stiffness: 90, damping: 18 });
@@ -172,9 +175,14 @@ export default function HeroStage({ product }: { product: Product }) {
       className="relative"
       style={{ height: reduced ? "100svh" : "340vh" }}
       onPointerMove={(e) => {
-        if (reduced || e.pointerType !== "mouse") return;
+        if (reduced) return;
+        pointer.current = { x: e.clientX, y: e.clientY, t: performance.now() };
+        if (e.pointerType !== "mouse") return;
         mx.set((e.clientX / window.innerWidth) * 2 - 1);
         my.set((e.clientY / window.innerHeight) * 2 - 1);
+      }}
+      onPointerLeave={() => {
+        pointer.current = null;
       }}
     >
       <div className="sticky top-0 h-[100svh] overflow-hidden">
@@ -184,7 +192,7 @@ export default function HeroStage({ product }: { product: Product }) {
           className="absolute inset-0"
           style={{
             background:
-              "radial-gradient(ellipse 40% 45% at 58% 40%, rgba(220,80,0,0.13), rgba(56,36,22,0.32) 50%, rgba(16,9,4,0) 80%)",
+              "radial-gradient(ellipse 42% 48% at 56% 42%, color-mix(in srgb, var(--tone) 34%, transparent), color-mix(in srgb, var(--tone) 9%, transparent) 52%, transparent 80%)",
           }}
         />
 
@@ -199,7 +207,7 @@ export default function HeroStage({ product }: { product: Product }) {
               MD
             </motion.span>
             <motion.span style={{ x: creativeX }} className="block">
-              Creative.
+              Creative<span style={{ color: "var(--accent)" }}>.</span>
             </motion.span>
           </h1>
         </motion.div>
@@ -215,7 +223,7 @@ export default function HeroStage({ product }: { product: Product }) {
             className="mx-auto -mt-[9vh] h-[18vh] w-[46vw]"
             style={{
               background:
-                "radial-gradient(ellipse at center, rgba(255,237,215,0.10), rgba(255,237,215,0) 65%)",
+                "radial-gradient(ellipse at center, rgba(244,242,238,0.10), rgba(244,242,238,0) 65%)",
             }}
           />
         </motion.div>
@@ -232,13 +240,29 @@ export default function HeroStage({ product }: { product: Product }) {
             {/* The constellation hands over to the real image completely — no
                 speckle left around a settled product. */}
             <motion.div className="absolute inset-0" style={{ opacity: particleOpacity }}>
-              <ParticleProduct key={cut.url} src={cut.url} form={form} pad={0.35} count={1300} />
+              <ParticleProduct
+                key={cut.url}
+                src={cut.url}
+                form={form}
+                kind={product.category === "tool" ? "strand" : "mist"}
+                pointer={pointer}
+                pad={0.35}
+                count={1300}
+              />
             </motion.div>
             <motion.div className="absolute inset-0" style={{ opacity: imageOpacity }}>
               <ProductImage key={product.id} product={product} priority className="h-full w-full" />
             </motion.div>
           </motion.div>
         </div>
+
+        <motion.span
+          style={{ opacity: hintOpacity }}
+          className="label-sm pointer-events-none absolute inset-x-0 bottom-[7vh] text-center"
+        >
+          <span className="hidden sm:inline">Move through the cloud — you’re the hairdryer</span>
+          <span className="sm:hidden">Drag through the cloud — you’re the hairdryer</span>
+        </motion.span>
 
         {BURST.map((card, i) => (
           <BurstCard key={card.label} progress={p} card={card} i={i} />
@@ -255,33 +279,33 @@ export default function HeroStage({ product }: { product: Product }) {
         >
           <div
             className="hidden max-w-sm flex-col gap-3 p-5 sm:flex"
-            style={{ borderRadius: "var(--radius-card)", background: "rgba(56,36,22,0.55)" }}
+            style={{ borderRadius: "var(--radius-card)", background: "rgba(31,41,44,0.55)" }}
           >
             <span className="label">
               <span className="credit">Built by</span> Kautum Krishnan Panjalaraja
             </span>
-            <hr className="rule-dashed" style={{ borderColor: "var(--driftwood)" }} />
-            <p className="body-sm" style={{ color: "var(--cream-70)", fontSize: 13 }}>
+            <hr className="rule-dashed" style={{ borderColor: "var(--slate)" }} />
+            <p className="body-sm" style={{ color: "var(--fg-70)", fontSize: 13 }}>
               Groq writes the copy. Pollinations paints the scene. The real product
               is placed into it — and the whole thing fits in a link.
             </p>
           </div>
           <div className="flex flex-col items-center gap-3">
             <span className="label-sm">Scroll</span>
-            <span className="relative block h-12 w-px overflow-hidden" style={{ background: "var(--cork)" }}>
-              <span className="animate-scroll-cue absolute inset-x-0 top-0 h-1/2" style={{ background: "var(--cream)" }} />
+            <span className="relative block h-12 w-px overflow-hidden" style={{ background: "var(--line)" }}>
+              <span className="animate-scroll-cue absolute inset-x-0 top-0 h-1/2" style={{ background: "var(--fg)" }} />
             </span>
           </div>
-          <span className="label hidden sm:block" style={{ color: "var(--cream-50)" }}>
+          <span className="label hidden sm:block" style={{ color: "var(--fg-50)" }}>
             {product.name} — £{product.price}
           </span>
         </motion.div>
 
         {/* Story progress — a hairline that fills down the right edge. */}
-        <div className="absolute bottom-[20vh] right-6 top-[20vh] hidden w-px lg:block" style={{ background: "var(--cork)" }}>
+        <div className="absolute bottom-[20vh] right-6 top-[20vh] hidden w-px lg:block" style={{ background: "var(--line)" }}>
           <motion.div
             className="absolute inset-x-0 top-0 h-full origin-top"
-            style={{ scaleY: progressBar, background: "var(--cream)" }}
+            style={{ scaleY: progressBar, background: "var(--tone)" }}
           />
         </div>
       </div>

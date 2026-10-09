@@ -1,6 +1,7 @@
 // mdlondon product catalogue for MD Creative.
-// Image URLs are the real product shots served from mdlondon's Shopify CDN
-// (mdlondon.com/cdn/shop/files/...). All verified to return 200.
+// Image URLs are the real product shots served from mdlondon's Shopify CDN.
+// Names, prices and bundle contents checked against the live store's
+// products.json on 9 Oct 2026; live prices refresh hourly (lib/livePrices).
 
 export const VIBES = [
   "Morning Routine",
@@ -28,8 +29,10 @@ export interface Product {
   id: string;
   name: string;
   category: ProductCategory;
-  /** Price in GBP. */
+  /** Price in GBP (as of the date above; live prices override at runtime). */
   price: number;
+  /** Pre-sale price when the store shows the product as reduced. */
+  wasPrice?: number;
   /**
    * Approximate real-world height in cm. Used to size products proportionally
    * to one another in multi-product composites, so a small spray no longer
@@ -81,33 +84,34 @@ export const PRODUCTS: Product[] = [
     id: "blow",
     name: "BLOW",
     category: "tool",
-    price: 195,
+    price: 199,
     heightCm: 24,
     tagline: "Lightweight, quiet, ionic hair dryer for a faster, smoother finish.",
     imageUrl:
       "https://mdlondon.com/cdn/shop/files/BLOW-v3-Casal-Blue-Product-2.webp?v=1770219384",
     hairConcerns: ["Frizzy", "Fine & Flat", "Thick", "Dry & Damaged"],
     bestFor: ["Morning Routine", "Professional", "Weekend Glam"],
-    productUrl: "https://mdlondon.com/products/blow",
+    productUrl: "https://mdlondon.com/products/blow-hair-dryer",
   },
   {
     id: "wave",
     name: "WAVE",
     category: "tool",
-    price: 125,
+    price: 129,
     heightCm: 30,
     tagline: "Heated barrel brush multi-styler — dry, smooth and shape in one pass.",
     imageUrl:
       "https://mdlondon.com/cdn/shop/files/MDL1003CWAVECASALBLUE003.jpg?v=1772636263",
     hairConcerns: ["Fine & Flat", "Frizzy", "Thick"],
     bestFor: ["Morning Routine", "Weekend Glam", "Date Night"],
-    productUrl: "https://mdlondon.com/products/wave",
+    productUrl: "https://mdlondon.com/products/wave-heated-barrel-brush-multi-styler",
   },
   {
     id: "strait",
     name: "STRAIT",
     category: "tool",
-    price: 109,
+    price: 80,
+    wasPrice: 119,
     heightCm: 28,
     tagline: "Slim straightener with floating plates for snag-free, even heat.",
     imageUrl:
@@ -120,7 +124,8 @@ export const PRODUCTS: Product[] = [
     id: "phat",
     name: "PHAT",
     category: "tool",
-    price: 129,
+    price: 85,
+    wasPrice: 129,
     heightCm: 29,
     tagline: "Extra-wide straightener that gets through thick hair in fewer strokes.",
     imageUrl:
@@ -133,7 +138,7 @@ export const PRODUCTS: Product[] = [
     id: "curl",
     name: "CURL",
     category: "tool",
-    price: 99,
+    price: 129,
     heightCm: 30,
     tagline: "Multi curling wand with a right-angled design for effortless control.",
     imageUrl:
@@ -229,7 +234,125 @@ export const PRODUCTS: Product[] = [
     bestFor: ["Professional", "Date Night", "Bad Hair Day Fix"],
     productUrl: "https://mdlondon.com/products/the-6",
   },
+
+  // ── THE NUMBERS 7–12 (second drop) ─────────────────────────────────────
+  {
+    id: "the-7",
+    name: "THE 7",
+    category: "number",
+    price: 15,
+    heightCm: 18,
+    tagline: "The Humidity Shield — a heat-activated barrier so the blow-dry lasts, whatever the weather.",
+    imageUrl:
+      "https://cdn.shopify.com/s/files/1/0571/0158/2517/files/The7HumidityWallbymdlondon2.jpg?v=1789737262",
+    hairConcerns: ["Frizzy", "Thick", "Fine & Flat"],
+    bestFor: ["Morning Routine", "Professional", "Date Night"],
+    productUrl: "https://mdlondon.com/products/the-7",
+  },
+  {
+    id: "the-8",
+    name: "THE 8",
+    category: "number",
+    price: 15,
+    heightCm: 19,
+    tagline: "Dry Heat Protection — goes on dry hair and flashes off in seconds, protected before the first pass.",
+    imageUrl:
+      "https://cdn.shopify.com/s/files/1/0571/0158/2517/files/The8-DryHeatProtectionSpray_919df6f4-64b9-4478-9a6c-3a5e918dc88c.jpg?v=1789737262",
+    hairConcerns: ["Dry & Damaged", "Fine & Flat", "Thick"],
+    bestFor: ["Morning Routine", "Professional", "Bad Hair Day Fix"],
+    productUrl: "https://mdlondon.com/products/the-8",
+  },
+  {
+    id: "the-9",
+    name: "THE 9",
+    category: "number",
+    price: 15,
+    heightCm: 18,
+    tagline: "More Curls Gel — clumps strands into defined, frizz-free curls that hold for days.",
+    imageUrl: "https://cdn.shopify.com/s/files/1/0571/0158/2517/files/The9-CurlGel.jpg?v=1789737262",
+    hairConcerns: ["Curly", "Frizzy"],
+    bestFor: ["Weekend Glam", "Date Night", "Morning Routine"],
+    productUrl: "https://mdlondon.com/products/the-9",
+  },
+  {
+    id: "the-10",
+    name: "THE 10",
+    category: "number",
+    price: 15,
+    heightCm: 12,
+    tagline: "Pre & Post Oil — glass-like shine and softness that won’t undo your style.",
+    imageUrl:
+      "https://cdn.shopify.com/s/files/1/0571/0158/2517/files/The10-Pre_PostOil2.jpg?v=1789737262",
+    hairConcerns: ["Dry & Damaged", "Frizzy", "Thick"],
+    bestFor: ["Date Night", "Weekend Glam", "Professional"],
+    productUrl: "https://mdlondon.com/products/the-10",
+  },
+  {
+    id: "the-11",
+    name: "THE 11",
+    category: "number",
+    price: 15,
+    heightCm: 12,
+    tagline: "Dry Cleaning — a precision-pump dry shampoo with actual hold, and actual control.",
+    imageUrl:
+      "https://cdn.shopify.com/s/files/1/0571/0158/2517/files/The11-DryCleaning.jpg?v=1789737262",
+    hairConcerns: ["Fine & Flat"],
+    bestFor: ["Bad Hair Day Fix", "Morning Routine"],
+    productUrl: "https://mdlondon.com/products/the-11",
+  },
+  {
+    id: "the-12",
+    name: "THE 12",
+    category: "number",
+    price: 15,
+    heightCm: 20,
+    tagline: "Salt Mousse — beachy texture with real grip. Undone, never crunchy.",
+    imageUrl:
+      "https://cdn.shopify.com/s/files/1/0571/0158/2517/files/The12-SeaSaltMousse.jpg?v=1789737262",
+    hairConcerns: ["Fine & Flat", "Curly"],
+    bestFor: ["Weekend Glam", "Bad Hair Day Fix"],
+    productUrl: "https://mdlondon.com/products/the-12",
+  },
 ];
+
+/** The Shopify handle a product's live price is looked up by. */
+export function storeHandle(p: Product): string {
+  return p.productUrl.split("/products/")[1];
+}
+
+/**
+ * mdlondon's own bundles — real routines with real prices, from the live
+ * store. Picking one selects exactly its products, and the copy can quote
+ * the bundle and its saving instead of inventing a kit.
+ */
+export interface Routine {
+  id: string;
+  name: string;
+  productIds: string[];
+  price: number;
+  wasPrice: number;
+  url: string;
+}
+
+export const ROUTINES: Routine[] = [
+  { id: "volume", name: "Volume + Body", productIds: ["the-1", "the-2", "the-5", "the-12"], price: 50, wasPrice: 60, url: "https://mdlondon.com/products/volume-bundle" },
+  { id: "curls", name: "Defined Curls", productIds: ["the-1", "the-3", "the-6", "the-9"], price: 50, wasPrice: 60, url: "https://mdlondon.com/products/defined-curls-bundle" },
+  { id: "gloss", name: "Frizz Free, Gloss + Shine", productIds: ["the-1", "the-2", "the-7", "the-10"], price: 50, wasPrice: 60, url: "https://mdlondon.com/products/frizz-free-gloss-bundle" },
+  { id: "lasting", name: "Lasting Style", productIds: ["the-1", "the-2", "the-7", "the-4"], price: 50, wasPrice: 60, url: "https://mdlondon.com/products/lasting-style-bundle" },
+  { id: "heat", name: "Heat Protection + Shine", productIds: ["the-1", "the-2", "the-10", "the-8"], price: 50, wasPrice: 60, url: "https://mdlondon.com/products/protect-and-shine-bundle" },
+  { id: "curl-blow", name: "Frizz Free Curl — BLOW", productIds: ["blow", "brush", "the-1", "the-3", "the-6", "the-9"], price: 185, wasPrice: 272, url: "https://mdlondon.com/products/frizz-free-curl-blow-bundle" },
+  { id: "all-12", name: "ALL 12", productIds: ["the-1", "the-2", "the-3", "the-4", "the-5", "the-6", "the-7", "the-8", "the-9", "the-10", "the-11", "the-12"], price: 150, wasPrice: 180, url: "https://mdlondon.com/products/all-12" },
+];
+
+/** The official routine whose products are exactly this selection, if any. */
+export function matchRoutine(ids: readonly string[]): Routine | null {
+  const set = new Set(ids);
+  return (
+    ROUTINES.find(
+      (r) => r.productIds.length === set.size && r.productIds.every((id) => set.has(id)),
+    ) ?? null
+  );
+}
 
 /**
  * Human label for a selection: "BLOW" / "BLOW + THE 2" / "5-piece edit" /
@@ -238,6 +361,8 @@ export const PRODUCTS: Product[] = [
 export function campaignLabel(products: Product[]): string {
   if (products.length === 1) return products[0].name;
   if (products.length === PRODUCTS.length) return "Full Range";
+  const routine = matchRoutine(products.map((p) => p.id));
+  if (routine) return routine.name;
   if (products.length >= 5) return `${products.length}-piece edit`;
   return products.map((p) => p.name).join(" + ");
 }

@@ -229,7 +229,7 @@ export default function DownloadBar({
     <div className="card flex flex-col gap-6 p-6">
       <div className="flex flex-col gap-3">
         <span className="label">Campaign pack</span>
-        <p className="body-sm" style={{ color: "var(--cream-70)" }}>
+        <p className="body-sm" style={{ color: "var(--fg-70)" }}>
           Every line of copy as a text file, plus the ad creative as a 1024×768
           PNG with the product composited in.
         </p>
