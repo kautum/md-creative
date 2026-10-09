@@ -4,7 +4,7 @@
 
 **AI-powered social content generator for mdlondon**
 
-*Built by [Kautum Krishnan](https://github.com/kautum) as part of a job application
+*Built by [Kautum Krishnan Panjalaraja (KPK)](https://github.com/kautum) as part of a job application
 for the Junior AI Developer role at [mdlondon](https://mdlondon.com)*
 
 ![Next.js](https://img.shields.io/badge/Next.js_16-black?style=flat-square&logo=next.js)
@@ -20,6 +20,52 @@ for the Junior AI Developer role at [mdlondon](https://mdlondon.com)*
 </div>
 
 ---
+
+## What's new in 3.0
+
+![The scroll story](public/screenshots/story.png)
+
+**An experience, not a form.** 3.0 borrows its motion vocabulary from the four
+reference design systems in `designs/`. The base is the warm-dark darkroom system.
+On top of it sit Dala's particle constellation, Apple's pinned scroll storytelling
+and floating price capsule, and Mercury's frosted nav.
+
+- **Pinned hero story.** The product assembles from a constellation of particles
+  sampled from its own pixels. Scrolling then carries it through three chapters: one
+  product in; a whole campaign out, where it dissolves and real copy bursts from it;
+  and staged on a plinth. Scroll is spring-smoothed, and the product tilts toward
+  the mouse.
+- **The range as a gallery.** On desktop the section pins and vertical scroll
+  drives the product track sideways. On touch it's a swipe carousel with snap
+  points.
+- **Selection capsule.** Once you pick something, a floating pill follows you with
+  thumbnails, the running £ total and a one-tap Generate.
+- **Campaign reveal.** While the scene paints, the lead product breathes as a
+  constellation. The finished scene then wipes in with scroll parallax, and the
+  phone mockups swing in from either side as you scroll.
+
+**Product images, rebuilt.** The in-browser flood-fill cutout (700px, hard edges,
+bleeding into low-contrast products) is replaced by `scripts/make_cutouts.py`. It
+runs BiRefNet segmentation on the 2048px source images, decontaminates the colour
+of semi-transparent edge pixels so nothing haloes on the dark canvas, and ships
+tight-cropped WebPs. All 12 total 984KB.
+
+**New features**
+- **Share link.** The whole campaign is deflated into the URL fragment (about 2KB),
+  with no backend and no account. Every field is re-validated when the link is
+  opened, and a damaged link is rejected with a message.
+- **Brand check.** Each campaign is scored against the brand voice's hard rules:
+  ≤6-word short ad, ≤20-word caption, 8–10 hashtags including #MDLONDON, no banned
+  words, and more. `npm test` runs it against the brand guide's own good and bad
+  examples.
+- **Smart brief.** The vibes and hair concerns your selection is made for are
+  marked ✦. That product data existed in 1.0 and 2.0 but was never shown.
+- **⌘/Ctrl + Enter** generates from anywhere on the page.
+
+**Fixed:** scenes could contain people. The old "beauty lifestyle photography"
+prompt made the free-tier model paint a model, including a sexualised figure in
+testing. Scenes are now framed as empty sets, with a negative prompt and
+Pollinations' safety filter on.
 
 ## What's new in 2.0
 
@@ -182,6 +228,10 @@ saturated scenes, making products near-invisible.
 
 The approach used in production:
 
+> **3.0:** steps 1–2 below described the original browser flood-fill. Cutouts are
+> now generated offline with an AI segmentation model (see *What's new in 3.0*); the
+> real-scale layout and contact shadows are unchanged.
+
 1. **Background removal via border flood-fill.** The algorithm starts from the image
    border, flood-fills connected near-background pixels (neighbour tolerance = 8),
    and removes them. This handles both products on pure-white backgrounds *and* products
@@ -245,8 +295,8 @@ content, not polished ad voiceover.
 | LLM (text) | Groq + gpt-oss-120b | Free tier, fast inference, least formulaic copy of the free models tested |
 | LLM (fallback) | Groq + gpt-oss-20b | Same model family and params, more rate-limit headroom |
 | Image generation | Pollinations.ai (flux) | Completely free, no API key, browser-loadable URL |
-| Compositing | Browser canvas + flood-fill | Zero cost, no external API; cutout quality sufficient for Tier 1/2 |
-| Animation | CSS + Framer Motion | Reveal stagger, typewriter, drifting hero object; all respect reduced motion |
+| Cutouts | BiRefNet via rembg, offline | Soft alpha matte from 2048px sources, colour-decontaminated edges; static WebPs |
+| Motion | Framer Motion + canvas | Scroll-scrubbed stages, particle constellation, spring smoothing; all respect reduced motion |
 | Fonts | Inter (ss01) | Free stand-in for Halyard Display, the face the design system was measured on |
 | Hosting | Vercel | Free tier, auto-deploys from GitHub; the Groq call finishes well within the function timeout |
 
@@ -318,7 +368,7 @@ mdlondon's team would extend it with:
 
 ## About this project
 
-Built by **Kautum Krishnan** — final-year MSc Data Science student at King's College
+Built by **Kautum Krishnan Panjalaraja (KPK)** — final-year MSc Data Science student at King's College
 London, with a background in building production LLM automation systems at Celcom Solutions.
 
 This tool was built specifically as a job application submission for the Junior AI

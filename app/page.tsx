@@ -502,6 +502,7 @@ export default function Home() {
         products={selectedProducts}
         hasVibe={!!selectedVibe}
         isGenerating={isGenerating}
+        hasCampaign={showCampaign}
         onGenerate={handleGenerate}
       />
     </div>

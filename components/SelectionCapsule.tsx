@@ -16,11 +16,13 @@ export default function SelectionCapsule({
   products,
   hasVibe,
   isGenerating,
+  hasCampaign,
   onGenerate,
 }: {
   products: Product[];
   hasVibe: boolean;
   isGenerating: boolean;
+  hasCampaign: boolean;
   onGenerate: () => void;
 }) {
   const [briefInView, setBriefInView] = useState(false);
@@ -36,7 +38,9 @@ export default function SelectionCapsule({
   }, []);
 
   const total = products.reduce((sum, p) => sum + p.price, 0);
-  const visible = products.length > 0 && !briefInView;
+  // Once a campaign is on screen it has its own controls; the capsule's job
+  // (getting you from a selection to a campaign) is done.
+  const visible = products.length > 0 && !briefInView && !hasCampaign;
 
   return (
     <AnimatePresence>
