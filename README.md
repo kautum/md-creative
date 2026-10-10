@@ -21,33 +21,40 @@ for the Junior AI Developer role at [mdlondon](https://mdlondon.com)*
 
 ---
 
-## What's new in 3.4
+## What's new in 3.5
 
-**Blue ink on ivory paper.** 3.2 read the colours the wrong way round, with a black
-canvas. 3.4 is the page KPK described: an ivory ground, type in deep blue, and line
-illustrations.
+**The hero is a product reel.** Scroll and the range plays through eight products,
+alternating tools and The Numbers: BLOW → THE 7 → WAVE → THE 3 → STRAIT → THE 12 →
+CURL → THE 5. Between products, one particle field morphs: the outgoing product
+dissolves into hair strands (tools) or mist (Numbers) and re-forms as the next,
+blending colour as it goes. Your cursor still blows the cloud like a hairdryer.
 
-| Role | Colour | |
-|------|--------|---|
-| Paper | Warm ivory | `#F4EFE6` |
-| Type, hairlines, engravings | Ink blue | `#1B3577` |
-| "Chosen" / "act" fills | Deep editorial blue | `#1F3F8A` |
+The empty space is now information, not decoration:
+- the product's name, huge and outlined behind it
+- its live price
+- mdlondon's own slogan for it, quoted
+- its tagline
+- the official mdlondon routines it belongs to
+- a **Pick this** button and a link to mdlondon.com
 
-Headlines and the conversational voice are set in **Crimson Pro**, an editorial
-book serif; labels and UI stay in Inter. Contrast was checked with the WCAG formula:
-ink on ivory is 10.1:1, and secondary ink at 74% is 5.0:1. Both pass AA.
+An index down the right edge jumps straight to any product. Prices in the reel
+come from the live catalogue: the old hard-coded "£195 dryer" line is gone, because
+BLOW is £199.
 
-**Engravings that grow.** Trees, sprigs and a grove are drawn by code in hairline
-ink, after the fine line art on mdlondon's Numbers packaging. Each is generated
-from a seed, so it looks natural but is identical on every visit. When one scrolls
-into view it grows: trunk first, then each level of branches, then the leaves
-unfurl. There's a tree on the hero stage, a sprig beside every section title and
-empty state, and a grove along the footer. The marquee's separator is the hedera
-❧, a classic typographic leaf.
+**mdlondon's type.** mdlondon.com sets headlines in **Dallas**, an extended geometric
+display face (and its Outline cut), and text in **Niveau Grotesk** and **Figtree**,
+read from the site's own CSS. Dallas and Niveau are licensed to mdlondon, so they
+aren't copied. Instead:
+- headlines use **Krona One**, the closest free extended geometric to Dallas
+- text uses **Figtree**, which mdlondon itself uses
+- outlined numerals and product names echo Dallas Outline
 
-Also: the scene retries up to three times (20s, 45s, 75s) before offering a manual
-retry, and while the copy is being written the scene frame says so, instead of the
-old "waiting for the brief".
+**The carousel moves.** The range glides continuously and loops without a seam.
+Hover, drag, swipe, the arrows or ←/→ take over and it resumes when you let go. A
+pause button stops it for good (WCAG 2.2.2). Measured: about 34px/s idle, 0 while
+hovered or paused, and it wraps from the end of the lap back to 01 / 18.
+
+The engraved trees from 3.4 are gone.
 
 ## What's new in 3.2
 

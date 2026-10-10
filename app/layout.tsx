@@ -1,23 +1,23 @@
 import type { Metadata, Viewport } from "next";
-import { Crimson_Pro, Inter } from "next/font/google";
+import { Figtree, Krona_One } from "next/font/google";
 import SiteNav from "@/components/SiteNav";
 import "./globals.css";
 
-// The design calls for Halyard Display (paid); Inter is its listed substitute.
-// globals.css switches on the "ss01" stylistic set it was measured with.
-const inter = Inter({
-  subsets: ["latin"],
-  weight: ["400", "500"],
-  variable: "--font-inter",
-});
-
-// Crimson Pro — an editorial book serif for headlines and the conversational
-// voice; Inter keeps the labels and UI.
-const crimson = Crimson_Pro({
+// mdlondon.com sets headlines in Dallas (an extended geometric display face)
+// and text in Niveau Grotesk and Figtree. Dallas and Niveau are licensed to
+// mdlondon, so we don't copy them: Krona One is the closest free extended
+// geometric to Dallas, and Figtree is the free face mdlondon itself uses.
+const figtree = Figtree({
   subsets: ["latin"],
   weight: ["400", "500", "600"],
   style: ["normal", "italic"],
-  variable: "--font-crimson",
+  variable: "--font-figtree",
+});
+
+const krona = Krona_One({
+  subsets: ["latin"],
+  weight: "400",
+  variable: "--font-krona",
 });
 
 const DESCRIPTION =
@@ -45,7 +45,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${inter.variable} ${crimson.variable} h-full antialiased`}>
+    <html lang="en" className={`${figtree.variable} ${krona.variable} h-full antialiased`}>
       <body className="min-h-full">
         <SiteNav />
         {/* Edge serial — the product-artifact label running down the margin. */}
@@ -54,7 +54,7 @@ export default function RootLayout({
           className="label-sm pointer-events-none fixed right-3 top-1/2 z-30 hidden -translate-y-1/2 lg:block"
           style={{ writingMode: "vertical-rl", color: "var(--fg-50)" }}
         >
-          MD CREATIVE — 3.4 — BY KPK
+          MD CREATIVE — 3.5 — BY KPK
         </span>
         <main>{children}</main>
       </body>
