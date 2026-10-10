@@ -2,7 +2,7 @@
 "use client";
 
 import { useRef } from "react";
-import { motion, useScroll, useSpring, useTransform } from "framer-motion";
+import { motion, useReducedMotion, useScroll, useTransform } from "framer-motion";
 import {
   BatteryFull,
   Bookmark,
@@ -402,13 +402,18 @@ export default function PlatformPreviews({
   // the section reaches the middle of the screen.
   const ref = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({ target: ref, offset: ["start end", "center center"] });
-  const t = useSpring(scrollYProgress, { stiffness: 120, damping: 26, mass: 0.4 });
-  const leftX = useTransform(t, [0, 1], ["-22vw", "0vw"]);
-  const rightX = useTransform(t, [0, 1], ["22vw", "0vw"]);
-  const spinL = useTransform(t, [0, 1], [38, 0]);
-  const spinR = useTransform(t, [0, 1], [-38, 0]);
-  const y = useTransform(t, [0, 1], [120, 0]);
-  const opacity = useTransform(t, [0, 0.35], [0, 1]);
+  // Tracks scroll 1:1 — no smoothing spring, so nothing lags the hand
+  // (SKILL.md §1–2). Function transforms keep this off the native scroll
+  // timeline. Both phones enter and leave along the same path (§7).
+  const reduced = useReducedMotion();
+  const ease = (v: number) => 1 - Math.pow(1 - Math.min(1, Math.max(0, v)), 3);
+  const t = useTransform(scrollYProgress, (v) => (reduced ? 1 : ease(v)));
+  const leftX = useTransform(t, (v) => `${(-22 * (1 - v)).toFixed(2)}vw`);
+  const rightX = useTransform(t, (v) => `${(22 * (1 - v)).toFixed(2)}vw`);
+  const spinL = useTransform(t, (v) => 38 * (1 - v));
+  const spinR = useTransform(t, (v) => -38 * (1 - v));
+  const y = useTransform(t, (v) => 120 * (1 - v));
+  const opacity = useTransform(t, (v) => Math.min(1, v / 0.35));
 
   return (
     <div

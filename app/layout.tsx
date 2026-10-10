@@ -54,7 +54,7 @@ export default function RootLayout({
           className="label-sm pointer-events-none fixed right-3 top-1/2 z-30 hidden -translate-y-1/2 lg:block"
           style={{ writingMode: "vertical-rl", color: "var(--fg-50)" }}
         >
-          MD CREATIVE — 3.5 — BY KPK
+          MD CREATIVE — 3.6 — BY KPK
         </span>
         <main>{children}</main>
       </body>

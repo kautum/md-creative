@@ -46,15 +46,17 @@ export default function SiteNav() {
 
   return (
     <header
-      className="fixed inset-x-0 top-0 z-40 flex items-center justify-between px-4 py-5 transition-[background-color,backdrop-filter,border-color] duration-500 sm:px-6"
-      style={{
-        // Transparent over the hero stage; frosted ivory once you're into
-        // the content, so labels stay legible over cards and imagery.
-        backgroundColor: active ? "rgba(244,239,230,0.82)" : "rgba(244,239,230,0)",
-        backdropFilter: active ? "blur(14px) saturate(140%)" : "none",
-        borderBottom: `1px dashed ${active ? "var(--line)" : "transparent"}`,
-      }}
+      // Transparent over the hero stage; once you're into the content it
+      // becomes a translucent material with a soft scroll edge beneath — no
+      // hard divider (designs/SKILL.md §12). The material fades in, rather
+      // than snapping, so the change reads as glass arriving.
+      className="fixed inset-x-0 top-0 z-40 flex items-center justify-between px-4 py-5 sm:px-6"
     >
+      <span
+        aria-hidden
+        className="material scroll-edge pointer-events-none absolute inset-0 -z-10 transition-opacity duration-500"
+        style={{ opacity: active ? 1 : 0 }}
+      />
       <a href="#top" className="label shrink-0 text-[12px] sm:text-[14px]">
         MD CREATIVE<span style={{ color: "var(--blue)" }}>.</span>
       </a>

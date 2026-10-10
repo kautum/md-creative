@@ -21,6 +21,55 @@ for the Junior AI Developer role at [mdlondon](https://mdlondon.com)*
 
 ---
 
+## What's new in 3.6
+
+3.6 is a stress-tested rebuild of the motion, following the Apple fluid-interface
+guide in `designs/SKILL.md`.
+
+**The hero no longer breaks under fast scrolling.** Scroll position now only
+decides *which* product should be on stage. The change is a fixed-length morph
+from whatever is on screen to that product, so flinging past five products is one
+clean transition. An interrupted morph re-routes the particles from their live
+positions, carrying their velocity, and takes proportionally less time. All eight
+photos stay mounted, so nothing reloads or flashes. A bug where the opening
+wordmark stayed half-visible over the reel is fixed; it came from scroll-linked
+opacity being handed to the browser's native scroll timeline.
+
+**Text never overflows.** "GREAT HAIR HAPPENS." and the outlined product names size
+themselves to their container, measuring the text and scaling it, at every width.
+
+**Apple's interaction physics in the carousel:**
+- 1:1 drag after a 10px threshold, with pointer capture only once it's a drag, so
+  taps still pick
+- momentum projection on release, using Apple's `v·d/(1−d)` with `d = 0.998`
+- spring landing with velocity handoff, bouncing only when the drag was a throw
+- arrows on critically damped springs that blend
+- grab mid-flight to stop; native wheel scrolling always wins
+
+**Foundations:**
+- press feedback on pointer-down (scale 0.96, 100ms)
+- the guide's spring parameters: critical damping for UI, the rotation spring for
+  the hero's tilt
+- scroll-tied motion tracks 1:1, with no smoothing lag
+- frosted "material" nav and capsule with a soft scroll edge instead of a divider;
+  the capsule materialises with blur and scale together
+- type in rem, so it respects the user's text size, with size-specific
+  letter-spacing (tight on display, open on small caps)
+- haptic tick on a pick and on a finished campaign (Vibration API)
+- `prefers-reduced-motion` gets cross-fades, with no 0.2 Hz loops, wipes or
+  parallax; `prefers-reduced-transparency` and `prefers-contrast: more` get solid
+  materials and stronger lines
+
+**How it was tested** (Playwright, production build):
+- text fit at 8 widths from 375 to 2560, checked against a control that
+  deliberately overflows
+- fast-scroll flings, reversals and 30 random jumps; each must settle with exactly
+  one photo, matching its name, with no cloud left
+- settle time after a burst: about 605ms, consistent across 6 runs
+- frame time: p99 about 9ms
+- carousel fling: travelled 1112px against 1210px predicted by the projection
+  formula, landing exactly on a card
+
 ## What's new in 3.5
 
 **The hero is a product reel.** Scroll and the range plays through eight products,

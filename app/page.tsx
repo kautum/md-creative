@@ -30,6 +30,7 @@ import ShareCard from "@/components/ShareCard";
 import DownloadBar from "@/components/DownloadBar";
 import HistoryStrip from "@/components/HistoryStrip";
 import SelectionCapsule from "@/components/SelectionCapsule";
+import FitText from "@/components/FitText";
 
 // Cycled below the Generate button while a generation is in flight.
 const GENERATION_STEPS = [
@@ -126,6 +127,7 @@ export default function Home() {
   };
 
   const handleToggleProduct = (p: Product) => {
+    haptic(8); // a pick is a commit: a tick, in the same frame as the visual
     setSelectedProductIds((prev) =>
       prev.includes(p.id) ? prev.filter((id) => id !== p.id) : [...prev, p.id],
     );
@@ -260,6 +262,7 @@ export default function Home() {
         };
         setHistory((prev) => pushHistory(prev, entry));
         setActiveHistoryId(entry.id);
+        haptic([10, 60, 10]); // completion
       }
     })();
   };
@@ -510,10 +513,10 @@ export default function Home() {
       </section>
 
       <footer className="flex flex-col gap-6 overflow-x-clip px-4 pb-28 pt-[68px] sm:px-6 lg:pr-12">
-        {/* mdlondon's own line ("…so that great hair happens"), in outline. */}
-        <span aria-hidden className="display outline block sm:whitespace-nowrap" style={{ fontSize: "clamp(36px, 8vw, 128px)" }}>
+        {/* mdlondon's own line ("…so that great hair happens"), sized to fit. */}
+        <FitText aria-hidden max={180} textClassName="display outline leading-none" className="w-full">
           Great hair happens.
-        </span>
+        </FitText>
         <span className="display" style={{ fontSize: "clamp(64px, 14vw, 220px)", color: "var(--slate)" }}>
           KPK.
         </span>
@@ -523,7 +526,7 @@ export default function Home() {
             endorsed by mdlondon.
           </span>
           <span className="legal">
-            <span className="credit">Built by</span> Kautum Krishnan Panjalaraja · v3.5
+            <span className="credit">Built by</span> Kautum Krishnan Panjalaraja · v3.6
           </span>
         </div>
       </footer>
@@ -537,6 +540,17 @@ export default function Home() {
       />
     </div>
   );
+}
+
+/**
+ * Haptic feedback where the platform supports it (Android; a no-op elsewhere).
+ * Reserved for meaningful moments — picks and a finished campaign — so it
+ * keeps its meaning (designs/SKILL.md §13). Never on reduced motion.
+ */
+function haptic(pattern: number | number[]) {
+  if (typeof navigator === "undefined" || typeof navigator.vibrate !== "function") return;
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  navigator.vibrate(pattern);
 }
 
 /** The options most of the selected products are made for (ties included). */

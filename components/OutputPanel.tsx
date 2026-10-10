@@ -6,6 +6,7 @@ import {
   motion,
   useMotionValue,
   useScroll,
+  useReducedMotion,
   useTransform,
 } from "framer-motion";
 import type { Product, GeneratedCopy } from "@/lib/products";
@@ -230,9 +231,12 @@ function AdCreative({
 
   // While the scene paints, the lead product hangs in the frame as a
   // breathing constellation.
+  // Reduced motion (SKILL.md §14): no 0.2 Hz breathing loop, no wipe or
+  // parallax — the scene simply cross-fades in.
+  const reduced = useReducedMotion();
   const breath = useMotionValue(0.35);
   useEffect(() => {
-    if (showScene) return;
+    if (showScene || reduced) return;
     const c = animate(breath, [0.35, 0.92, 0.6, 0.92], {
       duration: 5,
       repeat: Infinity,
@@ -240,7 +244,7 @@ function AdCreative({
       ease: "easeInOut",
     });
     return () => c.stop();
-  }, [showScene, breath]);
+  }, [showScene, breath, reduced]);
 
   // Gentle parallax: the scene drifts against the frame as the page scrolls.
   const frameRef = useRef<HTMLDivElement>(null);
@@ -248,7 +252,7 @@ function AdCreative({
     target: frameRef,
     offset: ["start end", "end start"],
   });
-  const sceneY = useTransform(scrollYProgress, [0, 1], ["-4%", "4%"]);
+  const sceneY = useTransform(scrollYProgress, (v) => (reduced ? "0%" : `${(v * 8 - 4).toFixed(2)}%`));
 
   return (
     <figure className="flex flex-col gap-3">
@@ -272,10 +276,12 @@ function AdCreative({
         <motion.div
           className="absolute inset-0"
           initial={false}
-          animate={{
-            clipPath: showScene ? "inset(0% 0% 0% 0%)" : "inset(0% 0% 100% 0%)",
-          }}
-          transition={{ duration: 1.2, ease: [0.77, 0, 0.18, 1] }}
+          animate={
+            reduced
+              ? { opacity: showScene ? 1 : 0 }
+              : { clipPath: showScene ? "inset(0% 0% 0% 0%)" : "inset(0% 0% 100% 0%)" }
+          }
+          transition={reduced ? { duration: 0.2 } : { duration: 1.2, ease: [0.77, 0, 0.18, 1] }}
         >
           {currentUrl && (
             <motion.img
