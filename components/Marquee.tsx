@@ -19,7 +19,7 @@ const LINE =
     "Great hair shouldn’t be complicated",
     "The right kit and a little know-how",
     "Great hair starts with the right routine",
-  ].join("   ❧   ") + "   ❧   ";
+  ].join("  —  ") + "  —  ";
 
 /**
  * mdlondon's own lines in display type, drifting left forever. Scrolling either way

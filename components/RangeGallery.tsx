@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ROUTINES, matchRoutine, type Product } from "@/lib/products";
 import ProductImage from "@/components/ProductImage";
-import Botanical from "@/components/Botanical";
 
 type Filter = "all" | "tool" | "number";
 const FILTERS: { id: Filter; label: string }[] = [
@@ -12,6 +11,8 @@ const FILTERS: { id: Filter; label: string }[] = [
   { id: "number", label: "The Numbers" },
 ];
 const DRAG_THRESHOLD = 6; // px of movement before a press counts as a drag
+const DRIFT_PX_PER_S = 34; // the carousel's idle glide
+const RESUME_AFTER_MS = 4000; // drift resumes this long after you stop handling it
 
 function Price({ product }: { product: Product }) {
   return (
@@ -89,7 +90,7 @@ function Card({
           <Price product={product} />
         </div>
         {/* mdlondon's own line for the product, quoted. */}
-        <p className="body-sm line-clamp-2 font-serif italic" style={{ color: "var(--fg-70)", fontSize: 17, lineHeight: 1.3 }}>
+        <p className="body-sm line-clamp-2 italic" style={{ color: "var(--fg-70)", fontSize: 15, lineHeight: 1.35 }}>
           “{product.slogan}”
         </p>
       </div>
@@ -115,9 +116,11 @@ function ArrowButton({ dir, onClick, disabled }: { dir: -1 | 1; onClick: () => v
 }
 
 /**
- * The range as a carousel you drive yourself: arrows, drag, swipe or the ←/→
- * keys, snapping card to card. The centred card is in focus; its neighbours
- * recede. Tap any card to pick it as you go — a drag never counts as a tap.
+ * The range as a carousel that keeps moving: a slow continuous glide that
+ * loops without a seam. Hover, drag, swipe, the arrows or the ←/→ keys take
+ * over (snapping card to card) and the glide resumes when you let go; the
+ * pause button stops it for good. Tap any card to pick it as it passes — a
+ * drag never counts as a tap.
  */
 export default function RangeGallery({
   products,
@@ -137,14 +140,21 @@ export default function RangeGallery({
   onPickRoutine: (ids: string[]) => void;
 }) {
   const [filter, setFilter] = useState<Filter>("all");
-  const [active, setActive] = useState(0);
+  const [active, setActive] = useState(0); // raw index into the doubled list
+  const [userPaused, setUserPaused] = useState(false);
   const trackRef = useRef<HTMLDivElement>(null);
   const cardRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const drag = useRef({ down: false, startX: 0, startScroll: 0, moved: false });
   // Where a smooth scroll is heading, so quick repeated clicks keep stepping.
   const pending = useRef<number | null>(null);
+  // Drift control: paused while hovered or being handled; resumes when idle.
+  const hover = useRef(false);
+  const holdUntil = useRef(0);
 
   const shown = filter === "all" ? products : products.filter((p) => p.category === filter);
+  const n = shown.length;
+  // The cards are drawn twice so the drift can loop without a seam.
+  const looped = [...shown, ...shown];
   const routine = matchRoutine(selectedIds);
 
   // Focus effect + active index, from the scroll position (no re-render per frame).
@@ -170,11 +180,21 @@ export default function RangeGallery({
     setActive((prev) => (prev === best ? prev : best));
   }, []);
 
+  /** Distance from the first card to its duplicate: one full lap. */
+  const lap = useCallback(() => {
+    const first = cardRefs.current[0];
+    const twin = cardRefs.current[n];
+    return first && twin ? twin.offsetLeft - first.offsetLeft : 0;
+  }, [n]);
+
   useEffect(() => {
     const track = trackRef.current;
     if (!track) return;
     let raf = 0;
     const onScroll = () => {
+      // Wrap a full lap back, invisibly, when the duplicate set is reached.
+      const L = lap();
+      if (L > 0 && track.scrollLeft >= L) track.scrollLeft -= L;
       cancelAnimationFrame(raf);
       raf = requestAnimationFrame(update);
     };
@@ -186,19 +206,65 @@ export default function RangeGallery({
       track.removeEventListener("scroll", onScroll);
       window.removeEventListener("resize", onScroll);
     };
-  }, [update, filter]);
+  }, [update, lap, filter]);
 
-  const goTo = useCallback((i: number) => {
+  // The drift: a slow continuous glide, paused while you're using it.
+  useEffect(() => {
     const track = trackRef.current;
-    const el = cardRefs.current[i];
-    if (!track || !el) return;
-    pending.current = i;
-    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    track.scrollTo({
-      left: el.offsetLeft - parseFloat(getComputedStyle(track).paddingLeft),
-      behavior: reduced ? "auto" : "smooth",
-    });
+    if (!track) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    let raf = 0;
+    let last = performance.now();
+    let carry = 0; // sub-pixel progress (scrollLeft is integer in some browsers)
+    const tick = (now: number) => {
+      const dt = Math.min(64, now - last);
+      last = now;
+      const drifting = !userPaused && !hover.current && now > holdUntil.current && !drag.current.down;
+      if (drifting && !document.hidden) {
+        track.style.scrollSnapType = "none";
+        carry += (DRIFT_PX_PER_S * dt) / 1000;
+        const whole = Math.floor(carry);
+        if (whole > 0) {
+          track.scrollLeft += whole;
+          carry -= whole;
+        }
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [userPaused, filter]);
+
+  /** Someone is handling the carousel: stop drifting, snap, resume when idle. */
+  const hold = useCallback(() => {
+    holdUntil.current = performance.now() + RESUME_AFTER_MS;
+    const track = trackRef.current;
+    if (track && !drag.current.down) track.style.scrollSnapType = "";
   }, []);
+
+  const goTo = useCallback(
+    (i: number) => {
+      const track = trackRef.current;
+      if (!track) return;
+      hold();
+      // Stay inside the doubled list; wrap backwards across the seam.
+      const L = lap();
+      let target = i;
+      if (target < 0 && L > 0) {
+        track.scrollLeft += L;
+        target += n;
+      }
+      const el = cardRefs.current[Math.max(0, Math.min(target, 2 * n - 1))];
+      if (!el) return;
+      pending.current = target;
+      const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      track.scrollTo({
+        left: el.offsetLeft - parseFloat(getComputedStyle(track).paddingLeft),
+        behavior: reduced ? "auto" : "smooth",
+      });
+    },
+    [hold, lap, n],
+  );
 
   const changeFilter = (f: Filter) => {
     setFilter(f);
@@ -208,6 +274,7 @@ export default function RangeGallery({
 
   // Mouse drag-to-scroll (touch and trackpads scroll natively).
   const onPointerDown = (e: React.PointerEvent) => {
+    hold();
     if (e.pointerType !== "mouse" || !trackRef.current) return;
     drag.current = { down: true, startX: e.clientX, startScroll: trackRef.current.scrollLeft, moved: false };
   };
@@ -229,7 +296,6 @@ export default function RangeGallery({
     if (!d.down || !track) return;
     d.down = false;
     if (d.moved) {
-      track.style.scrollSnapType = "";
       track.style.cursor = "";
       goTo(active);
     }
@@ -242,19 +308,26 @@ export default function RangeGallery({
     onToggle(p);
   };
 
+  const shownIndex = n ? active % n : 0;
+  const step = (dir: -1 | 1) => goTo((pending.current ?? active) + dir);
+
   return (
-    <section id="range" className="rule-dashed flex flex-col gap-8 py-[68px] lg:py-[110px]">
-      <div className="flex flex-col items-start gap-4 px-4 sm:flex-row sm:items-end sm:justify-between sm:px-6 lg:pr-12">
-        <div className="flex flex-col gap-4">
+    <section id="range" className="rule-dashed flex flex-col gap-8 overflow-x-clip py-[68px] lg:py-[110px]">
+      <div className="relative isolate flex flex-col items-start gap-4 px-4 sm:flex-row sm:items-end sm:justify-between sm:px-6 lg:pr-12">
+        <span
+          aria-hidden
+          className="display outline pointer-events-none absolute -top-[0.45em] right-4 -z-10 select-none leading-none opacity-40 sm:right-6 lg:right-12"
+          style={{ fontSize: "clamp(110px, 20vw, 320px)" }}
+        >
+          01
+        </span>
+        <div className="relative flex flex-col gap-4">
           <span className="label" style={{ color: "var(--fg-50)" }}>
             01 — The range · {priceNote}
           </span>
-          <div className="flex items-end gap-4">
-            <h2 className="heading">Pick the object.</h2>
-            <Botanical kind="sprig" seed={17} className="-mb-1 h-12 w-10 shrink-0 sm:h-14 sm:w-12" />
-          </div>
+          <h2 className="heading">Pick the object.</h2>
         </div>
-        <div className="flex items-center gap-6">
+        <div className="relative flex items-center gap-6">
           <span className="label" style={{ color: "var(--fg-50)" }}>
             {selectedIds.length} / {products.length} picked
             {routine ? ` · ${routine.name} bundle` : ""}
@@ -295,7 +368,11 @@ export default function RangeGallery({
       </div>
 
       <div className="flex items-center justify-between gap-4 px-4 sm:px-6 lg:pr-12">
-        <div role="tablist" aria-label="Filter the range" className="flex min-w-0 gap-[10px] overflow-x-auto [scrollbar-width:none] sm:flex-wrap [&::-webkit-scrollbar]:hidden [&>*]:shrink-0">
+        <div
+          role="tablist"
+          aria-label="Filter the range"
+          className="flex min-w-0 gap-[10px] overflow-x-auto [scrollbar-width:none] sm:flex-wrap [&::-webkit-scrollbar]:hidden [&>*]:shrink-0"
+        >
           {FILTERS.map((f) => (
             <button
               key={f.id}
@@ -311,14 +388,23 @@ export default function RangeGallery({
         </div>
         <div className="flex shrink-0 items-center gap-3">
           <span className="label hidden tabular-nums sm:inline" style={{ color: "var(--fg-50)" }}>
-            {String(active + 1).padStart(2, "0")} / {String(shown.length).padStart(2, "0")}
+            {String(shownIndex + 1).padStart(2, "0")} / {String(n).padStart(2, "0")}
           </span>
-          <ArrowButton dir={-1} onClick={() => goTo(Math.max(0, (pending.current ?? active) - 1))} disabled={active === 0} />
-          <ArrowButton
-            dir={1}
-            onClick={() => goTo(Math.min(shown.length - 1, (pending.current ?? active) + 1))}
-            disabled={active >= shown.length - 1}
-          />
+          {/* Auto-moving content needs a pause control (WCAG 2.2.2). */}
+          <button
+            type="button"
+            onClick={() => setUserPaused((v) => !v)}
+            aria-label={userPaused ? "Play the carousel" : "Pause the carousel"}
+            aria-pressed={userPaused}
+            className="flex h-11 w-11 items-center justify-center rounded-full"
+            style={{ border: "1px solid var(--fg-50)" }}
+          >
+            <span aria-hidden className="label" style={{ fontSize: 13 }}>
+              {userPaused ? "▶" : "❚❚"}
+            </span>
+          </button>
+          <ArrowButton dir={-1} onClick={() => step(-1)} disabled={false} />
+          <ArrowButton dir={1} onClick={() => step(1)} disabled={false} />
         </div>
       </div>
 
@@ -331,21 +417,30 @@ export default function RangeGallery({
         onKeyDown={(e) => {
           if (e.key === "ArrowRight") {
             e.preventDefault();
-            goTo(Math.min(shown.length - 1, active + 1));
+            step(1);
           } else if (e.key === "ArrowLeft") {
             e.preventDefault();
-            goTo(Math.max(0, active - 1));
+            step(-1);
           }
+        }}
+        onPointerEnter={(e) => {
+          if (e.pointerType === "mouse") hover.current = true;
+        }}
+        onPointerLeave={() => {
+          hover.current = false;
+          endDrag();
         }}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={endDrag}
-        onPointerLeave={endDrag}
-        className="flex cursor-grab snap-x snap-mandatory scroll-px-4 gap-[18px] overflow-x-auto py-4 pl-4 pr-[calc(100%-var(--card)-16px)] [--card:74vw] [scrollbar-width:none] sm:scroll-px-6 sm:pl-6 sm:pr-[calc(100%-var(--card)-24px)] sm:[--card:44vw] lg:[--card:340px] [&::-webkit-scrollbar]:hidden"
+        onWheel={hold}
+        onTouchStart={hold}
+        onFocus={hold}
+        className="flex cursor-grab snap-x snap-mandatory scroll-px-4 gap-[18px] overflow-x-auto py-4 pl-4 pr-4 [--card:74vw] [scrollbar-width:none] sm:scroll-px-6 sm:pl-6 sm:[--card:44vw] lg:[--card:340px] [&::-webkit-scrollbar]:hidden"
       >
-        {shown.map((p, i) => (
+        {looped.map((p, i) => (
           <Card
-            key={p.id}
+            key={`${p.id}-${i < n ? "a" : "b"}`}
             product={p}
             index={products.indexOf(p)}
             selected={selectedIds.includes(p.id)}
@@ -360,7 +455,7 @@ export default function RangeGallery({
       <div className="mx-4 h-px sm:mx-6 lg:mr-12" style={{ background: "var(--line)" }}>
         <div
           className="h-px transition-[width] duration-300"
-          style={{ width: `${((active + 1) / shown.length) * 100}%`, background: "var(--blue)" }}
+          style={{ width: `${((shownIndex + 1) / Math.max(1, n)) * 100}%`, background: "var(--blue)" }}
         />
       </div>
     </section>

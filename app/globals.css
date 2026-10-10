@@ -4,8 +4,9 @@
      warm ivory  #F4EFE6  the paper
      ink blue    #1B3577  all type, hairlines and the botanical engravings
      deep blue   #1F3F8A  fills that mean "chosen" or "act"
-   Headlines and the conversational voice are set in Crimson Pro (an
-   editorial serif); labels and UI stay in Inter. Contrast (WCAG): ink on
+   Type follows mdlondon.com: headlines in an extended geometric display
+   face (Krona One, the free stand-in for their Dallas) and text in Figtree,
+   which mdlondon itself uses. Contrast (WCAG): ink on
    ivory 10.1:1, secondary ink (74%) 5.0:1 — both pass AA at small sizes.
    Products bring their own colours in their photographs. */
 
@@ -40,8 +41,8 @@
   --color-accent: var(--accent);
   --color-tone: var(--tone);
   --color-blue: var(--blue);
-  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
-  --font-serif: var(--font-crimson), ui-serif, Georgia, serif;
+  --font-sans: var(--font-figtree), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-krona), ui-sans-serif, system-ui, sans-serif;
 }
 
 html {
@@ -53,8 +54,7 @@ html {
 body {
   background-color: var(--bg);
   color: var(--fg);
-  font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
-  font-feature-settings: "ss01" on;
+  font-family: var(--font-figtree), ui-sans-serif, system-ui, sans-serif;
   font-weight: 500;
 }
 
@@ -85,24 +85,30 @@ body {
     font-weight: 500;
     text-transform: uppercase;
   }
+  /* Krona One is extended (wide), so sizes run smaller than a normal face. */
   .heading {
-    font-family: var(--font-crimson), ui-serif, Georgia, serif;
-    font-size: clamp(30px, 3.4vw, 41px);
-    line-height: 0.9;
-    font-weight: 500;
+    font-family: var(--font-krona), ui-sans-serif, system-ui, sans-serif;
+    font-size: clamp(22px, 2.5vw, 34px);
+    line-height: 1.05;
+    font-weight: 400;
     text-transform: uppercase;
   }
   .display {
-    font-family: var(--font-crimson), ui-serif, Georgia, serif;
-    font-size: clamp(64px, 12vw, 176px);
-    line-height: 0.9;
-    font-weight: 500;
+    font-family: var(--font-krona), ui-sans-serif, system-ui, sans-serif;
+    font-size: clamp(42px, 7.4vw, 124px);
+    line-height: 1;
+    font-weight: 400;
     text-transform: uppercase;
+  }
+  /* Outlined display type, after mdlondon's own Dallas Outline headlines. */
+  .outline {
+    color: transparent;
+    -webkit-text-stroke: 1px var(--fg);
   }
 
   /* Mixed-case 400 — the only conversational voice. */
   .body-voice {
-    font-family: var(--font-crimson), ui-serif, Georgia, serif;
+    font-family: var(--font-figtree), ui-sans-serif, system-ui, sans-serif;
     font-size: clamp(20px, 2vw, 29px);
     line-height: 1.26;
     font-weight: 400;

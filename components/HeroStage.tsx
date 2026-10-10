@@ -1,180 +1,124 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useRef, useState } from "react";
 import {
-  animate,
+  AnimatePresence,
   motion,
   useMotionValue,
+  useMotionValueEvent,
   useReducedMotion,
   useScroll,
   useSpring,
   useTransform,
-  type MotionValue,
 } from "framer-motion";
-import type { Product } from "@/lib/products";
+import { ROUTINES, type Product } from "@/lib/products";
 import { getCutout } from "@/lib/cutout";
 import ProductImage from "@/components/ProductImage";
-import ParticleProduct, { type Pointer } from "@/components/ParticleProduct";
-import Botanical from "@/components/Botanical";
+import ParticleReel from "@/components/ParticleReel";
+import type { Pointer } from "@/components/ParticleProduct";
 
 /**
- * The hero is a pinned stage: 340vh of scroll scrubs one product through
- * three chapters — the void-mode "product reveal" from the reference, told in
- * sequence the way Apple pages do. Scroll progress is spring-smoothed so
- * every transform eases instead of stepping with the wheel.
+ * The hero is a product reel: scroll and the range plays through one product
+ * at a time. Between products the particles morph — the outgoing product
+ * dissolves into hair strands or mist and re-forms as the next. Behind each
+ * one, its name in outlined display type (after mdlondon's own outline
+ * headlines); around it, the facts that matter: live price, mdlondon's own
+ * slogan, the official routines it belongs to, and a button to pick it.
  */
 
-// Sample output for the exploded view — lines from mdlondon's own brand
-// voice examples, labelled as examples on screen.
-const BURST = [
-  // x/y are vw/vh offsets from centre — kept inside the middle half of the
-  // screen so they never cross the chapter text in the outer columns.
-  { label: "Short ad", text: "Volume. Shine. No frizz.", x: -15, y: -30 },
-  { label: "TikTok hook", text: "Your dryer is the reason your hair looks like that.", x: 15, y: -24 },
-  { label: "Caption", text: "Frizzy mornings, solved.", x: -16, y: 14 },
-  { label: "Hashtags", text: "#MDLONDON #THENUMBERS", x: 15, y: 22 },
-  { label: "CTA", text: "Shop the routine.", x: -2, y: 36 },
-];
+// Tools and Numbers alternate, so the morph swaps strands and mist.
+const REEL = ["blow", "the-7", "wave", "the-3", "strait", "the-12", "curl", "the-5"];
+const INTRO = 0.08; // share of the scroll spent on the opening wordmark
+const END = 0.97;
+const VH_PER_PRODUCT = 70;
 
-const CHAPTERS = [
-  {
-    n: "01",
-    title: "One product in.",
-    body: "A £13 brush or the £195 dryer. Pick one for a hero campaign, or a few for a bundle.",
-    range: [0.14, 0.2, 0.34, 0.4],
-  },
-  {
-    n: "02",
-    title: "A whole campaign out.",
-    body: "Angle, caption, hashtags, three paid ads and a TikTok script — written in mdlondon’s voice and checked against its rules.",
-    range: [0.42, 0.48, 0.62, 0.68],
-  },
-  {
-    n: "03",
-    title: "Staged where it belongs.",
-    body: "A scene painted from the campaign idea, with the real product placed in it. Not a lookalike.",
-    range: [0.7, 0.76, 1.1, 1.2],
-  },
-] as const;
-
-function Chapter({
-  progress,
-  chapter,
-}: {
-  progress: MotionValue<number>;
-  chapter: (typeof CHAPTERS)[number];
-}) {
-  const [a, b, c, d] = chapter.range;
-  const opacity = useTransform(progress, [a, b, c, d], [0, 1, 1, 0]);
-  const y = useTransform(progress, [a, b, c, d], [40, 0, 0, -40]);
+function Price({ p }: { p: Product }) {
   return (
-    <motion.div
-      style={{ opacity, y }}
-      className="pointer-events-none absolute inset-x-4 bottom-[12vh] grid grid-cols-1 gap-6 sm:inset-x-6 lg:inset-x-6 lg:bottom-auto lg:top-1/2 lg:-translate-y-1/2 lg:grid-cols-12 lg:pr-6"
-    >
-      <div className="flex flex-col gap-4 lg:col-span-3">
-        <span className="label" style={{ color: "var(--fg-50)" }}>
-          {chapter.n} / 03
-        </span>
-        <h2 className="heading">{chapter.title}</h2>
-      </div>
-      <p className="body-voice lg:col-span-3 lg:col-start-10">{chapter.body}</p>
-    </motion.div>
+    <span className="label flex items-baseline gap-2" style={{ fontSize: 14 }}>
+      {p.wasPrice && (
+        <s style={{ color: "var(--fg-50)" }} aria-label={`was £${p.wasPrice}`}>
+          £{p.wasPrice}
+        </s>
+      )}
+      £{p.price}
+    </span>
   );
 }
 
-function BurstCard({
-  progress,
-  card,
-  i,
+export default function HeroStage({
+  products,
+  selectedIds,
+  onToggle,
 }: {
-  progress: MotionValue<number>;
-  card: (typeof BURST)[number];
-  i: number;
+  products: Product[];
+  selectedIds: string[];
+  onToggle: (p: Product) => void;
 }) {
-  const start = 0.44 + i * 0.015;
-  const t = useTransform(progress, [start, start + 0.08, 0.63, 0.69], [0, 1, 1, 0]);
-  const x = useTransform(t, [0, 1], ["0vw", `${card.x}vw`]);
-  const y = useTransform(t, [0, 1], ["0vh", `${card.y}vh`]);
-  const scale = useTransform(t, [0, 1], [0.6, 1]);
-  return (
-    <motion.div
-      style={{ x, y, scale, opacity: t }}
-      className="pointer-events-none absolute left-1/2 top-1/2 hidden w-[230px] -translate-x-1/2 -translate-y-1/2 flex-col gap-2 p-4 lg:flex"
-    >
-      <div
-        className="absolute inset-0"
-        style={{
-          borderRadius: "var(--radius-card)",
-          border: "1px solid var(--line)",
-          background: "rgba(244,239,230,0.86)",
-          backdropFilter: "blur(10px)",
-        }}
-      />
-      <span className="label-sm relative" style={{ color: "var(--fg-50)" }}>
-        {card.label}
-      </span>
-      <span className="body-sm relative" style={{ fontSize: 14 }}>
-        {card.text}
-      </span>
-    </motion.div>
-  );
-}
-
-export default function HeroStage({ product }: { product: Product }) {
   const ref = useRef<HTMLElement>(null);
   const reduced = useReducedMotion();
-  const { scrollYProgress } = useScroll({
-    target: ref,
-    offset: ["start start", "end end"],
+  const reel = REEL.map((id) => {
+    const p = products.find((x) => x.id === id);
+    if (!p) throw new Error(`HeroStage: reel product "${id}" is not in the catalogue`);
+    return p;
   });
+  const n = reel.length;
+
+  const { scrollYProgress } = useScroll({ target: ref, offset: ["start start", "end end"] });
   const p = useSpring(scrollYProgress, { stiffness: 140, damping: 30, mass: 0.4 });
+  const s = useTransform(p, [INTRO, END], [0, n - 1], { clamp: true });
 
-  // Assembly: particles converge on load (and when the product changes),
-  // loosen into a field while the copy bursts out, re-form for the staging.
-  const intro = useMotionValue(reduced ? 1 : 0);
-  useEffect(() => {
-    if (reduced) return;
-    intro.set(0);
-    const c = animate(intro, 1, { duration: 2.2, ease: [0.22, 1, 0.36, 1], delay: 0.15 });
-    return () => c.stop();
-  }, [product.id, intro, reduced]);
-  const scrollForm = useTransform(p, [0, 0.42, 0.5, 0.62, 0.72], [1, 1, 0.4, 0.4, 1]);
-  const form = useTransform(() => Math.min(intro.get(), scrollForm.get()));
-  const imageOpacity = useTransform(form, [0.86, 1], [0, 1]);
-  const particleOpacity = useTransform(form, [0.9, 1], [1, 0]);
-  const hintOpacity = useTransform(p, [0.47, 0.52, 0.6, 0.65], [0, 1, 1, 0]);
+  // React state only changes when the product changes, not every frame.
+  const [idx, setIdx] = useState(0);
+  const [k, setK] = useState(0);
+  useMotionValueEvent(s, "change", (v) => {
+    const r = Math.round(v);
+    if (r !== idx) setIdx(r);
+    const f = Math.max(0, Math.min(Math.floor(v), n - 2));
+    if (f !== k) setK(f);
+  });
 
-  // The object's path through the chapters.
-  const scale = useTransform(p, [0, 0.4, 0.62, 0.8, 1], [1, 0.82, 0.62, 0.78, 0.78]);
-  const rotate = useTransform(p, [0, 0.4, 0.62, 0.8], [-6, 7, 0, -3]);
-  const lift = useTransform(p, [0, 0.72, 0.82], ["0vh", "0vh", "6vh"]);
+  // Real photographs at rest, particles in transit.
+  const frac = (v: number) => v - Math.max(0, Math.min(Math.floor(v), n - 2));
+  const imgA = useTransform(s, (v) => 1 - Math.min(1, Math.max(0, frac(v) / 0.1)));
+  const imgB = useTransform(s, (v) => Math.min(1, Math.max(0, (frac(v) - 0.9) / 0.1)));
+  const cloud = useTransform(s, (v) => {
+    const t = frac(v);
+    return Math.min(1, Math.max(0, Math.min(t, 1 - t) * 12));
+  });
+  const wobble = useTransform(s, (v) => Math.sin(frac(v) * Math.PI) * 6);
 
-  // Mouse tilt — a small 3D lean toward the pointer, springy.
-  // Where the pointer is, shared with the particle canvas: it's the hairdryer.
+  // Opening wordmark gives way to the reel.
+  const introOpacity = useTransform(p, [0, INTRO * 0.8], [1, 0]);
+  const reelOpacity = useTransform(p, [INTRO * 0.5, INTRO], [0, 1]);
+
+  // Mouse tilt, and the pointer the particles feel as wind.
   const pointer = useRef<Pointer | null>(null);
   const mx = useMotionValue(0);
   const my = useMotionValue(0);
-  const rotateY = useSpring(useTransform(mx, [-1, 1], [-14, 14]), { stiffness: 90, damping: 18 });
-  const rotateX = useSpring(useTransform(my, [-1, 1], [10, -10]), { stiffness: 90, damping: 18 });
+  const rotateY = useSpring(useTransform(mx, [-1, 1], [-12, 12]), { stiffness: 90, damping: 18 });
+  const rotateX = useSpring(useTransform(my, [-1, 1], [8, -8]), { stiffness: 90, damping: 18 });
 
-  // Intro furniture fades as the story begins.
-  const introOpacity = useTransform(p, [0, 0.12], [1, 0]);
-  const mdX = useTransform(p, [0, 0.14], ["0vw", "-10vw"]);
-  const creativeX = useTransform(p, [0, 0.14], ["0vw", "10vw"]);
+  const jumpTo = (i: number) => {
+    const el = ref.current;
+    if (!el) return;
+    const travel = el.offsetHeight - window.innerHeight;
+    const at = INTRO + (i / (n - 1)) * (END - INTRO);
+    window.scrollTo({ top: el.offsetTop + travel * at, behavior: reduced ? "auto" : "smooth" });
+  };
 
-  // Staging plinth for chapter 3.
-  const plinth = useTransform(p, [0.72, 0.82], [0, 1]);
-  const progressBar = useTransform(p, [0, 1], [0, 1]);
-
-  const cut = getCutout(product.id);
+  const current = reel[idx];
+  const routines = ROUTINES.filter((r) => r.productIds.includes(current.id));
+  const picked = selectedIds.includes(current.id);
+  const srcs = reel.map((x) => getCutout(x.id).url);
+  const kinds = reel.map((x) => (x.category === "tool" ? "strand" : "mist") as "strand" | "mist");
+  const next = reel[Math.min(k + 1, n - 1)];
 
   return (
     <section
       ref={ref}
       id="top"
       className="relative"
-      style={{ height: reduced ? "100svh" : "340vh" }}
+      style={{ height: reduced ? "100svh" : `${100 + (n - 1) * VH_PER_PRODUCT + 30}vh` }}
       onPointerMove={(e) => {
         if (reduced) return;
         pointer.current = { x: e.clientX, y: e.clientY, t: performance.now() };
@@ -187,98 +131,195 @@ export default function HeroStage({ product }: { product: Product }) {
       }}
     >
       <div className="sticky top-0 h-[100svh] overflow-hidden">
-        {/* Warm rim light from the upper right. */}
+        {/* Studio sweep behind the object. */}
         <div
           aria-hidden
           className="absolute inset-0"
           style={{
             background:
-              "radial-gradient(ellipse 40% 46% at 55% 44%, rgba(255,255,255,0.8), rgba(255,255,255,0.3) 45%, rgba(255,255,255,0) 80%)",
+              "radial-gradient(ellipse 38% 44% at 50% 46%, rgba(255,255,255,0.85), rgba(255,255,255,0.3) 45%, rgba(255,255,255,0) 80%)",
           }}
         />
 
-        {/* Wordmark — splits apart as the story starts. */}
+        {/* The product's name, huge and outlined, behind it. */}
+        <motion.div
+          style={{ opacity: reelOpacity }}
+          className="pointer-events-none absolute inset-y-0 left-[22vw] right-[22vw] flex items-center justify-center overflow-hidden max-lg:inset-x-0"
+        >
+          <AnimatePresence mode="popLayout" initial={false}>
+            <motion.span
+              key={current.id}
+              aria-hidden
+              className="display outline whitespace-nowrap leading-none"
+              style={{ fontSize: "clamp(64px, 11vw, 200px)" }}
+              initial={{ x: "18vw", opacity: 0 }}
+              animate={{ x: 0, opacity: 0.32 }}
+              exit={{ x: "-18vw", opacity: 0 }}
+              transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+            >
+              {current.name}
+            </motion.span>
+          </AnimatePresence>
+        </motion.div>
+
+        {/* Opening: the wordmark. */}
         <motion.div
           style={{ opacity: introOpacity }}
-          className="pointer-events-none absolute left-4 top-24 z-10 flex flex-col gap-4 sm:left-6 lg:top-[16vh]"
+          className="pointer-events-none absolute left-4 top-24 z-10 flex flex-col gap-5 sm:left-6 lg:top-[14vh]"
         >
           <span className="label">Hair confidence, every day — campaign studio</span>
           <h1 className="display">
-            <motion.span style={{ x: mdX }} className="block">
-              MD
-            </motion.span>
-            <motion.span style={{ x: creativeX }} className="block">
-              Creative<span style={{ color: "var(--blue)" }}>.</span>
-            </motion.span>
+            MD
+            <br />
+            Creative<span style={{ color: "var(--blue)" }}>.</span>
           </h1>
+          <p className="body-voice max-w-md" style={{ color: "var(--fg-70)" }}>
+            Scroll through the range. Pick anything, and get the whole campaign.
+          </p>
         </motion.div>
 
-        {/* Engraved trees frame the stage, growing in as it loads. */}
-        <motion.div style={{ opacity: introOpacity }} className="pointer-events-none absolute inset-0">
-          <Botanical kind="tree" seed={21} className="absolute bottom-0 right-[2vw] h-[46vh] w-auto opacity-60" />
-        </motion.div>
-
-        {/* Plinth: a horizon line and a pool of light the object lands on. */}
-        <motion.div
-          aria-hidden
-          style={{ opacity: plinth }}
-          className="absolute inset-x-0 top-[71%]"
-        >
-          <div className="rule-dashed mx-auto w-[70%]" />
-          <div
-            className="mx-auto -mt-[9vh] h-[18vh] w-[46vw]"
-            style={{
-              background:
-                "radial-gradient(ellipse at center, rgba(26,26,24,0.10), rgba(26,26,24,0) 65%)",
-            }}
-          />
-        </motion.div>
-
-        {/* The object. */}
+        {/* The object: photographs at rest, a morphing particle field between. */}
         <div
-          className="absolute left-1/2 top-[46%] h-[52vh] w-[78vw] -translate-x-1/2 -translate-y-1/2 sm:w-[52vw] lg:h-[60vh] lg:w-[38vw]"
+          className="absolute left-1/2 top-[48%] h-[44vh] w-[70vw] -translate-x-1/2 -translate-y-1/2 sm:w-[46vw] lg:h-[58vh] lg:w-[34vw]"
           style={{ perspective: 1100 }}
         >
-          <motion.div
-            className="relative h-full w-full"
-            style={{ scale, rotate, y: lift, rotateX, rotateY, transformStyle: "preserve-3d" }}
-          >
-            {/* The constellation hands over to the real image completely — no
-                speckle left around a settled product. */}
-            <motion.div className="absolute inset-0" style={{ opacity: particleOpacity }}>
-              <ParticleProduct
-                key={cut.url}
-                src={cut.url}
-                form={form}
-                kind={product.category === "tool" ? "strand" : "mist"}
-                pointer={pointer}
-                pad={0.35}
-                count={1300}
-              />
+          <motion.div className="relative h-full w-full" style={{ rotate: wobble, rotateX, rotateY }}>
+            <motion.div className="absolute inset-0" style={{ opacity: cloud }}>
+              <ParticleReel srcs={srcs} kinds={kinds} position={s} pointer={pointer} />
             </motion.div>
-            <motion.div className="absolute inset-0" style={{ opacity: imageOpacity }}>
-              <ProductImage key={product.id} product={product} priority className="h-full w-full" />
+            <motion.div className="absolute inset-0" style={{ opacity: imgA }}>
+              <ProductImage key={reel[k].id} product={reel[k]} priority className="h-full w-full" />
+            </motion.div>
+            <motion.div className="absolute inset-0" style={{ opacity: imgB }}>
+              <ProductImage key={next.id} product={next} priority className="h-full w-full" />
             </motion.div>
           </motion.div>
         </div>
 
-        <motion.span
-          style={{ opacity: hintOpacity }}
-          className="label-sm pointer-events-none absolute inset-x-0 bottom-[7vh] text-center"
+        {/* Left: what it is. */}
+        <motion.div
+          style={{ opacity: reelOpacity }}
+          className="absolute bottom-24 left-4 z-10 max-w-[78vw] sm:left-6 lg:bottom-auto lg:top-1/2 lg:max-w-[26vw] lg:-translate-y-1/2"
         >
-          <span className="hidden sm:inline">Move through the cloud — you’re the hairdryer</span>
-          <span className="sm:hidden">Drag through the cloud — you’re the hairdryer</span>
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.div
+              key={current.id}
+              initial={{ y: 24, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: -24, opacity: 0 }}
+              transition={{ duration: 0.35 }}
+              className="flex flex-col gap-4 rounded-[12px] p-5 lg:-ml-5"
+              style={{ background: "rgba(244,239,230,0.88)" }}
+            >
+              <span className="label" style={{ color: "var(--fg-50)" }}>
+                {current.category === "tool" ? "The tools" : "The Numbers"} · {String(idx + 1).padStart(2, "0")} /{" "}
+                {String(n).padStart(2, "0")}
+              </span>
+              <div className="flex items-baseline gap-4">
+                <h2 className="heading" style={{ fontSize: "clamp(28px, 3.2vw, 46px)" }}>
+                  {current.name}
+                </h2>
+                <Price p={current} />
+              </div>
+              <p className="body-voice italic" style={{ fontSize: "clamp(18px, 1.6vw, 24px)" }}>
+                “{current.slogan}”
+              </p>
+              <span className="legal">mdlondon, on {current.name}</span>
+            </motion.div>
+          </AnimatePresence>
+        </motion.div>
+
+        {/* Right: where it fits, and pick it. */}
+        <motion.div
+          style={{ opacity: reelOpacity }}
+          className="absolute right-12 top-1/2 z-10 hidden w-[24vw] -translate-y-1/2 lg:block"
+        >
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.div
+              key={current.id}
+              initial={{ y: 24, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: -24, opacity: 0 }}
+              transition={{ duration: 0.35, delay: 0.05 }}
+              className="flex flex-col gap-5 rounded-[12px] p-5"
+              style={{ background: "rgba(244,239,230,0.88)" }}
+            >
+              <p className="body-sm" style={{ color: "var(--fg-70)" }}>
+                {current.tagline}
+              </p>
+              <div className="rule-dashed flex flex-col gap-2 pt-4">
+                <span className="label-sm" style={{ color: "var(--fg-50)" }}>
+                  In mdlondon routines
+                </span>
+                {routines.length ? (
+                  routines.map((r) => (
+                    <span key={r.id} className="label">
+                      {r.name} · £{r.price}
+                    </span>
+                  ))
+                ) : (
+                  <span className="label">Sold on its own</span>
+                )}
+              </div>
+              <div className="flex flex-wrap items-center gap-4 pt-1">
+                <button
+                  type="button"
+                  onClick={() => onToggle(current)}
+                  className="btn-filled"
+                  style={{ padding: "11px 20px", fontSize: 12 }}
+                >
+                  {picked ? "Picked ✓" : "Pick this +"}
+                </button>
+                <a href={current.productUrl} target="_blank" rel="noreferrer" className="link">
+                  mdlondon.com ↗
+                </a>
+              </div>
+            </motion.div>
+          </AnimatePresence>
+        </motion.div>
+
+        {/* The reel index, down the right edge — click to jump. */}
+        <motion.nav
+          aria-label="Product reel"
+          style={{ opacity: reelOpacity }}
+          className="absolute right-3 top-1/2 z-10 hidden -translate-y-1/2 flex-col items-end gap-2 2xl:flex"
+        >
+          {reel.map((x, i) => (
+            <button
+              key={x.id}
+              type="button"
+              onClick={() => jumpTo(i)}
+              className="label-sm transition-colors"
+              style={{ color: i === idx ? "var(--blue)" : "var(--fg-50)" }}
+              aria-current={i === idx}
+            >
+              {i === idx ? "● " : ""}
+              {x.name}
+            </button>
+          ))}
+        </motion.nav>
+
+        {/* Mobile: pick from the reel too. */}
+        <motion.div style={{ opacity: reelOpacity }} className="absolute bottom-8 left-4 z-10 lg:hidden">
+          <button
+            type="button"
+            onClick={() => onToggle(current)}
+            className="btn-filled"
+            style={{ padding: "10px 18px", fontSize: 12 }}
+          >
+            {picked ? "Picked ✓" : `Pick ${current.name} +`}
+          </button>
+        </motion.div>
+
+        {/* The cursor is the hairdryer, while the product is in the air. */}
+        <motion.span
+          style={{ opacity: cloud }}
+          className="label-sm pointer-events-none absolute inset-x-0 bottom-[6vh] hidden text-center lg:block"
+        >
+          Move through the cloud — you’re the hairdryer
         </motion.span>
 
-        {BURST.map((card, i) => (
-          <BurstCard key={card.label} progress={p} card={card} i={i} />
-        ))}
-
-        {CHAPTERS.map((ch) => (
-          <Chapter key={ch.n} progress={p} chapter={ch} />
-        ))}
-
-        {/* Intro card + scroll cue, bottom. */}
+        {/* Opening furniture: credit + scroll cue. */}
         <motion.div
           style={{ opacity: introOpacity }}
           className="absolute inset-x-4 bottom-6 flex items-end justify-between gap-6 sm:inset-x-6"
@@ -290,30 +331,22 @@ export default function HeroStage({ product }: { product: Product }) {
             <span className="label">
               <span className="credit">Built by</span> Kautum Krishnan Panjalaraja
             </span>
-            <hr className="rule-dashed" style={{ borderColor: "var(--slate)" }} />
+            <hr className="rule-dashed" />
             <p className="body-sm" style={{ color: "var(--fg-70)", fontSize: 13 }}>
               Groq writes the copy. Pollinations paints the scene. The real product
               is placed into it — and the whole thing fits in a link.
             </p>
           </div>
           <div className="flex flex-col items-center gap-3">
-            <span className="label-sm">Scroll</span>
+            <span className="label-sm">Scroll the range</span>
             <span className="relative block h-12 w-px overflow-hidden" style={{ background: "var(--line)" }}>
               <span className="animate-scroll-cue absolute inset-x-0 top-0 h-1/2" style={{ background: "var(--fg)" }} />
             </span>
           </div>
           <span className="label hidden sm:block" style={{ color: "var(--fg-50)" }}>
-            {product.name} — £{product.price}
+            {n} products · tools &amp; The Numbers
           </span>
         </motion.div>
-
-        {/* Story progress — a hairline that fills down the right edge. */}
-        <div className="absolute bottom-[20vh] right-6 top-[20vh] hidden w-px lg:block" style={{ background: "var(--line)" }}>
-          <motion.div
-            className="absolute inset-x-0 top-0 h-full origin-top"
-            style={{ scaleY: progressBar, background: "var(--tone)" }}
-          />
-        </div>
       </div>
     </section>
   );
