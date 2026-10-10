@@ -36,7 +36,8 @@ export default function Marquee() {
     if (reduced) return;
     const width = rowRef.current?.offsetWidth ?? 0;
     if (width === 0) return;
-    const boost = 1 + Math.min(Math.abs(velocity.get()) / 300, 6);
+    // A fast scroll nudges it along (at most 2x) — more reads as frantic.
+    const boost = 1 + Math.min(Math.abs(velocity.get()) / 1500, 1);
     let next = x.get() - (BASE_SPEED * boost * delta) / 1000;
     if (next <= -width) next += width; // seamless: the row is drawn twice
     x.set(next);

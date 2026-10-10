@@ -12,7 +12,10 @@ function Word({
   progress: MotionValue<number>;
   range: [number, number];
 }) {
-  const opacity = useTransform(progress, range, [0.16, 1]);
+  // Function form keeps this off the browser's native scroll timeline
+  // (see HeroStage: the range form mis-tracked offsets).
+  const [a, b] = range;
+  const opacity = useTransform(progress, (v) => 0.16 + 0.84 * Math.min(1, Math.max(0, (v - a) / (b - a))));
   return (
     <motion.span style={{ opacity }} className="inline-block whitespace-pre">
       {word}{" "}

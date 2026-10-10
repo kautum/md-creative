@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { campaignLabel, matchRoutine, type Product } from "@/lib/products";
 import ProductImage from "@/components/ProductImage";
 
@@ -26,6 +26,7 @@ export default function SelectionCapsule({
   onGenerate: () => void;
 }) {
   const [briefInView, setBriefInView] = useState(false);
+  const reduced = useReducedMotion();
 
   useEffect(() => {
     const brief = document.getElementById("brief");
@@ -47,19 +48,22 @@ export default function SelectionCapsule({
     <AnimatePresence>
       {visible && (
         <motion.div
-          initial={{ y: 90, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          exit={{ y: 90, opacity: 0 }}
-          transition={{ type: "spring", stiffness: 260, damping: 28 }}
+          // Materialises (SKILL.md §12): rises from the edge it leaves by,
+          // scaling and unblurring together, on a critically damped spring
+          // (§4: bounce 0, response 0.4s). Reduced motion: a plain cross-fade.
+          initial={reduced ? { opacity: 0 } : { y: 40, scale: 0.94, opacity: 0, filter: "blur(8px)" }}
+          animate={reduced ? { opacity: 1 } : { y: 0, scale: 1, opacity: 1, filter: "blur(0px)" }}
+          exit={reduced ? { opacity: 0 } : { y: 40, scale: 0.94, opacity: 0, filter: "blur(8px)" }}
+          transition={reduced ? { duration: 0.2 } : { type: "spring", bounce: 0, visualDuration: 0.4 }}
           className="fixed inset-x-0 bottom-5 z-40 flex justify-center px-4"
         >
           <div
-            className="flex max-w-full items-center gap-4 py-2 pl-3 pr-2"
+            className="material flex max-w-full items-center gap-4 py-2 pl-3 pr-2"
             style={{
               borderRadius: "var(--radius-pill)",
               border: "1px solid var(--line)",
-              background: "rgba(244,239,230,0.86)",
-              backdropFilter: "blur(16px) saturate(140%)",
+              // A bigger floating surface reads as thicker: a soft shadow.
+              boxShadow: "inset 0 1px 0 rgba(255,255,255,0.55), 0 10px 30px rgba(27,53,119,0.12)",
             }}
           >
             <div className="flex -space-x-2">

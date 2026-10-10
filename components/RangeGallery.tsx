@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { animate, useMotionValue, type AnimationPlaybackControls } from "framer-motion";
 import { ROUTINES, matchRoutine, type Product } from "@/lib/products";
 import ProductImage from "@/components/ProductImage";
 
@@ -10,7 +11,14 @@ const FILTERS: { id: Filter; label: string }[] = [
   { id: "tool", label: "Tools" },
   { id: "number", label: "The Numbers" },
 ];
-const DRAG_THRESHOLD = 6; // px of movement before a press counts as a drag
+const DRAG_THRESHOLD = 10; // px before a press becomes a drag (SKILL.md §10)
+const VELOCITY_WINDOW_MS = 100; // release velocity is measured over this
+const MOMENTUM_PX_S = 300; // faster than this counts as a throw
+
+/** Apple's momentum projection (SKILL.md §6): where a fling comes to rest. */
+function project(velocityPxS: number, decelerationRate = 0.998) {
+  return ((velocityPxS / 1000) * decelerationRate) / (1 - decelerationRate);
+}
 const DRIFT_PX_PER_S = 34; // the carousel's idle glide
 const RESUME_AFTER_MS = 4000; // drift resumes this long after you stop handling it
 
@@ -105,7 +113,7 @@ function ArrowButton({ dir, onClick, disabled }: { dir: -1 | 1; onClick: () => v
       onClick={onClick}
       disabled={disabled}
       aria-label={dir < 0 ? "Previous product" : "Next product"}
-      className="flex h-11 w-11 items-center justify-center rounded-full transition-colors disabled:opacity-30"
+      className="press flex h-11 w-11 items-center justify-center rounded-full disabled:opacity-30"
       style={{ border: "1px solid var(--fg-50)" }}
     >
       <span aria-hidden className="label" style={{ fontSize: 16 }}>
@@ -144,18 +152,78 @@ export default function RangeGallery({
   const [userPaused, setUserPaused] = useState(false);
   const trackRef = useRef<HTMLDivElement>(null);
   const cardRefs = useRef<(HTMLButtonElement | null)[]>([]);
-  const drag = useRef({ down: false, startX: 0, startScroll: 0, moved: false });
-  // Where a smooth scroll is heading, so quick repeated clicks keep stepping.
-  const pending = useRef<number | null>(null);
+
+  // The carousel's position lives in one unbounded motion value, `sx`.
+  // Everything moves it — drag, springs, the idle drift — so every motion
+  // starts from the live value and inherits its velocity (SKILL.md §3).
+  // It's shown modulo one lap, over a doubled list, so it loops seamlessly.
+  const sx = useMotionValue(0);
+  const anim = useRef<AnimationPlaybackControls | null>(null);
+  const restingAt = useRef<number | null>(null); // where a spring is heading
+  const lastWritten = useRef(-1);
+  const drag = useRef({ down: false, startX: 0, startSx: 0, moved: false, id: -1 });
+  const history = useRef<{ x: number; t: number }[]>([]);
   // Drift control: paused while hovered or being handled; resumes when idle.
   const hover = useRef(false);
   const holdUntil = useRef(0);
 
   const shown = filter === "all" ? products : products.filter((p) => p.category === filter);
   const n = shown.length;
-  // The cards are drawn twice so the drift can loop without a seam.
   const looped = [...shown, ...shown];
   const routine = matchRoutine(selectedIds);
+
+  /** Distance from the first card to its duplicate: one full lap. */
+  const lap = useCallback(() => {
+    const first = cardRefs.current[0];
+    const twin = cardRefs.current[n];
+    return first && twin ? twin.offsetLeft - first.offsetLeft : 0;
+  }, [n]);
+
+  /** Card start positions within one lap (plus the lap end, which is card 0 again). */
+  const stops = useCallback(() => {
+    const first = cardRefs.current[0];
+    if (!first) return [];
+    const out: number[] = [];
+    for (let i = 0; i < n; i++) {
+      const el = cardRefs.current[i];
+      if (el) out.push(el.offsetLeft - first.offsetLeft);
+    }
+    return out;
+  }, [n]);
+
+  /** The card start nearest `p`, in unbounded sx space. */
+  const nearestStop = useCallback(
+    (p: number) => {
+      const L = lap();
+      const s = stops();
+      if (!L || !s.length) return p;
+      const base = Math.floor(p / L) * L;
+      let best = 0;
+      let bd = Infinity;
+      for (const o of [...s, L]) {
+        const d = Math.abs(o - (p - base));
+        if (d < bd) {
+          bd = d;
+          best = o;
+        }
+      }
+      return base + best;
+    },
+    [lap, stops],
+  );
+
+  // sx → the track's scrollLeft (modulo one lap).
+  useEffect(
+    () =>
+      sx.on("change", (v) => {
+        const track = trackRef.current;
+        if (!track) return;
+        const L = lap();
+        track.scrollLeft = L > 0 ? ((v % L) + L) % L : Math.max(0, v);
+        lastWritten.current = track.scrollLeft;
+      }),
+    [sx, lap],
+  );
 
   // Focus effect + active index, from the scroll position (no re-render per frame).
   const update = useCallback(() => {
@@ -167,7 +235,6 @@ export default function RangeGallery({
     cardRefs.current.forEach((el, i) => {
       if (!el) return;
       const d = (el.offsetLeft - start) / el.offsetWidth; // in card widths
-      // Cards ahead recede gently; cards scrolled past fade out faster.
       const a = d >= 0 ? Math.min(d, 3) * 0.6 : Math.min(-d, 1.5) * 1.3;
       el.style.transform = `scale(${1 - Math.min(a, 1.4) * 0.06})`;
       el.style.opacity = String(Math.max(0.6, 1 - a * 0.18));
@@ -176,25 +243,30 @@ export default function RangeGallery({
         best = i;
       }
     });
-    if (pending.current === best) pending.current = null;
     setActive((prev) => (prev === best ? prev : best));
   }, []);
 
-  /** Distance from the first card to its duplicate: one full lap. */
-  const lap = useCallback(() => {
-    const first = cardRefs.current[0];
-    const twin = cardRefs.current[n];
-    return first && twin ? twin.offsetLeft - first.offsetLeft : 0;
-  }, [n]);
+  /** Someone is handling the carousel: stop drifting; resume when idle. */
+  const hold = useCallback(() => {
+    holdUntil.current = performance.now() + RESUME_AFTER_MS;
+  }, []);
 
   useEffect(() => {
     const track = trackRef.current;
     if (!track) return;
     let raf = 0;
     const onScroll = () => {
-      // Wrap a full lap back, invisibly, when the duplicate set is reached.
-      const L = lap();
-      if (L > 0 && track.scrollLeft >= L) track.scrollLeft -= L;
+      // A scroll we didn't write is the user's own (wheel, trackpad, touch):
+      // it wins — stop our motion and adopt their position (§3).
+      if (Math.abs(track.scrollLeft - lastWritten.current) > 1) {
+        anim.current?.stop();
+        restingAt.current = null;
+        const L = lap();
+        if (L > 0 && track.scrollLeft >= L) track.scrollLeft -= L;
+        lastWritten.current = track.scrollLeft;
+        sx.jump(track.scrollLeft);
+        hold();
+      }
       cancelAnimationFrame(raf);
       raf = requestAnimationFrame(update);
     };
@@ -206,77 +278,103 @@ export default function RangeGallery({
       track.removeEventListener("scroll", onScroll);
       window.removeEventListener("resize", onScroll);
     };
-  }, [update, lap, filter]);
+  }, [update, lap, sx, hold, filter]);
 
-  // The drift: a slow continuous glide, paused while you're using it.
+  // The idle drift: a slow continuous glide, paused while you're using it.
   useEffect(() => {
     const track = trackRef.current;
     if (!track) return;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     let raf = 0;
     let last = performance.now();
-    let carry = 0; // sub-pixel progress (scrollLeft is integer in some browsers)
     const tick = (now: number) => {
       const dt = Math.min(64, now - last);
       last = now;
-      const drifting = !userPaused && !hover.current && now > holdUntil.current && !drag.current.down;
-      if (drifting && !document.hidden) {
+      const idle =
+        !userPaused && !hover.current && now > holdUntil.current && !drag.current.down && !anim.current;
+      if (idle && !document.hidden) {
         track.style.scrollSnapType = "none";
-        carry += (DRIFT_PX_PER_S * dt) / 1000;
-        const whole = Math.floor(carry);
-        if (whole > 0) {
-          track.scrollLeft += whole;
-          carry -= whole;
-        }
+        sx.set(sx.get() + (DRIFT_PX_PER_S * dt) / 1000);
       }
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [userPaused, filter]);
+  }, [userPaused, filter, sx]);
 
-  /** Someone is handling the carousel: stop drifting, snap, resume when idle. */
-  const hold = useCallback(() => {
-    holdUntil.current = performance.now() + RESUME_AFTER_MS;
-    const track = trackRef.current;
-    if (track && !drag.current.down) track.style.scrollSnapType = "";
-  }, []);
-
-  const goTo = useCallback(
-    (i: number) => {
+  /** Spring to a resting position, from the live value and velocity. */
+  const springTo = useCallback(
+    (target: number, opts: { bounce: number; velocity?: number }) => {
       const track = trackRef.current;
-      if (!track) return;
+      anim.current?.stop();
+      restingAt.current = target;
+      if (track) track.style.scrollSnapType = "none"; // our spring, not CSS snap
       hold();
-      // Stay inside the doubled list; wrap backwards across the seam.
-      const L = lap();
-      let target = i;
-      if (target < 0 && L > 0) {
-        track.scrollLeft += L;
-        target += n;
-      }
-      const el = cardRefs.current[Math.max(0, Math.min(target, 2 * n - 1))];
-      if (!el) return;
-      pending.current = target;
       const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-      track.scrollTo({
-        left: el.offsetLeft - parseFloat(getComputedStyle(track).paddingLeft),
-        behavior: reduced ? "auto" : "smooth",
+      if (reduced) {
+        sx.jump(target);
+        restingAt.current = null;
+        return;
+      }
+      const controls = animate(sx, target, {
+        type: "spring",
+        bounce: opts.bounce,
+        visualDuration: 0.4,
+        ...(opts.velocity !== undefined ? { velocity: opts.velocity } : {}),
+        onComplete: () => {
+          if (anim.current !== controls) return;
+          anim.current = null;
+          restingAt.current = null;
+          // Fold back into the first lap; restore CSS snap for touch.
+          const L = lap();
+          if (L > 0) sx.jump(((sx.get() % L) + L) % L);
+          if (track) track.style.scrollSnapType = "";
+        },
       });
+      anim.current = controls;
     },
-    [hold, lap, n],
+    [sx, lap, hold],
   );
 
-  const changeFilter = (f: Filter) => {
-    setFilter(f);
-    cardRefs.current = [];
-    trackRef.current?.scrollTo({ left: 0 });
+  /** Step one card, from wherever we're heading — quick clicks keep stepping. */
+  const step = (dir: -1 | 1) => {
+    const L = lap();
+    const s = stops();
+    if (!L || !s.length) return;
+    const from = restingAt.current ?? nearestStop(sx.get());
+    const base = Math.floor(from / L) * L;
+    const m = from - base;
+    let k = 0;
+    let bd = Infinity;
+    s.forEach((o, i) => {
+      const d = Math.min(Math.abs(o - m), Math.abs(o + L - m));
+      if (d < bd) {
+        bd = d;
+        k = i;
+      }
+    });
+    const nk = k + dir;
+    const pos = nk < 0 ? s[n - 1] - L : nk >= n ? L + s[0] : s[nk];
+    springTo(base + pos, { bounce: 0 }); // critically damped: no momentum here
   };
 
-  // Mouse drag-to-scroll (touch and trackpads scroll natively).
+  const changeFilter = (f: Filter) => {
+    anim.current?.stop();
+    anim.current = null;
+    restingAt.current = null;
+    setFilter(f);
+    cardRefs.current = [];
+    sx.jump(0);
+  };
+
+  // Drag: 1:1 tracking after a 10px threshold, then momentum projection.
   const onPointerDown = (e: React.PointerEvent) => {
     hold();
-    if (e.pointerType !== "mouse" || !trackRef.current) return;
-    drag.current = { down: true, startX: e.clientX, startScroll: trackRef.current.scrollLeft, moved: false };
+    if (e.pointerType !== "mouse") return; // touch scrolls natively
+    anim.current?.stop(); // grab it mid-flight (§3)
+    anim.current = null;
+    drag.current = { down: true, startX: e.clientX, startSx: sx.get(), moved: false, id: e.pointerId };
+    history.current = [{ x: e.clientX, t: performance.now() }];
   };
   const onPointerMove = (e: React.PointerEvent) => {
     const d = drag.current;
@@ -285,20 +383,38 @@ export default function RangeGallery({
     const dx = e.clientX - d.startX;
     if (!d.moved && Math.abs(dx) > DRAG_THRESHOLD) {
       d.moved = true;
-      track.style.scrollSnapType = "none"; // free movement while dragging
+      // Capture only once it's a drag, so a plain tap still picks a card.
+      track.setPointerCapture(d.id);
+      track.style.scrollSnapType = "none";
       track.style.cursor = "grabbing";
     }
-    if (d.moved) track.scrollLeft = d.startScroll - dx;
+    if (!d.moved) return;
+    sx.set(d.startSx - dx); // the grab offset is respected: content moves with the hand
+    const now = performance.now();
+    history.current.push({ x: e.clientX, t: now });
+    while (history.current.length > 2 && now - history.current[0].t > VELOCITY_WINDOW_MS) history.current.shift();
   };
   const endDrag = () => {
     const d = drag.current;
     const track = trackRef.current;
     if (!d.down || !track) return;
     d.down = false;
-    if (d.moved) {
-      track.style.cursor = "";
-      goTo(active);
-    }
+    if (!d.moved) return;
+    track.style.cursor = "";
+    if (track.hasPointerCapture(d.id)) track.releasePointerCapture(d.id);
+    // Release velocity from the recent history, in scroll direction (px/s).
+    const h = history.current;
+    const first = h[0];
+    const lastP = h[h.length - 1];
+    const dt = (lastP.t - first.t) / 1000;
+    const pointerV = dt > 0 ? (lastP.x - first.x) / dt : 0;
+    const v = -pointerV;
+    // Project where the fling is going, then land on the card nearest that (§6).
+    const projected = sx.get() + project(v);
+    springTo(nearestStop(projected), {
+      bounce: Math.abs(v) > MOMENTUM_PX_S ? 0.2 : 0, // bounce only when it was thrown
+      velocity: v,
+    });
   };
   const onPick = (p: Product) => {
     if (drag.current.moved) {
@@ -309,7 +425,6 @@ export default function RangeGallery({
   };
 
   const shownIndex = n ? active % n : 0;
-  const step = (dir: -1 | 1) => goTo((pending.current ?? active) + dir);
 
   return (
     <section id="range" className="rule-dashed flex flex-col gap-8 overflow-x-clip py-[68px] lg:py-[110px]">
@@ -396,7 +511,7 @@ export default function RangeGallery({
             onClick={() => setUserPaused((v) => !v)}
             aria-label={userPaused ? "Play the carousel" : "Pause the carousel"}
             aria-pressed={userPaused}
-            className="flex h-11 w-11 items-center justify-center rounded-full"
+            className="press flex h-11 w-11 items-center justify-center rounded-full"
             style={{ border: "1px solid var(--fg-50)" }}
           >
             <span aria-hidden className="label" style={{ fontSize: 13 }}>
@@ -428,11 +543,11 @@ export default function RangeGallery({
         }}
         onPointerLeave={() => {
           hover.current = false;
-          endDrag();
         }}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={endDrag}
+        onPointerCancel={endDrag}
         onWheel={hold}
         onTouchStart={hold}
         onFocus={hold}
