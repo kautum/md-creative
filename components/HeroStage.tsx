@@ -30,7 +30,20 @@ import type { Pointer } from "@/components/ParticleProduct";
 const REEL = ["blow", "the-7", "wave", "the-3", "strait", "the-12", "curl", "the-5"];
 const INTRO = 0.08; // share of the scroll spent on the opening wordmark
 const END = 0.97;
-const VH_PER_PRODUCT = 70;
+const VH_PER_PRODUCT = 120;
+// Share of each product's stretch of scroll where it simply holds still,
+// fully visible; the morph to the next happens in the rest.
+const HOLD = 0.6;
+
+/** Raw reel position → position with a still "hold" around every product. */
+function dwell(r: number) {
+  const k = Math.floor(r);
+  const f = r - k;
+  const h = HOLD / 2;
+  if (f <= h) return k;
+  if (f >= 1 - h) return k + 1;
+  return k + (f - h) / (1 - HOLD);
+}
 
 function Price({ p }: { p: Product }) {
   return (
@@ -65,7 +78,8 @@ export default function HeroStage({
 
   const { scrollYProgress } = useScroll({ target: ref, offset: ["start start", "end end"] });
   const p = useSpring(scrollYProgress, { stiffness: 140, damping: 30, mass: 0.4 });
-  const s = useTransform(p, [INTRO, END], [0, n - 1], { clamp: true });
+  const raw = useTransform(p, [INTRO, END], [0, n - 1], { clamp: true });
+  const s = useTransform(raw, (r) => Math.min(n - 1, dwell(r)));
 
   // React state only changes when the product changes, not every frame.
   const [idx, setIdx] = useState(0);
